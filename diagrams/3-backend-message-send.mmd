@@ -1,0 +1,45 @@
+flowchart TB
+
+    Endpoint["Join endpoint<br/>(Webex Connect / AWS Lambda)"]
+    Cloud["Webex Cloud xAPI<br/><i>Message.Send</i> to the device ID"]
+
+    subgraph RoomOS["RoomOS Device - macro"]
+        direction LR
+        Event["Message Send event<br/>type, v, deviceId, token,<br/>destination, meetingType, PINs"]
+        Check{"Valid request?<br/>token known, unexpired and unused,<br/>device idle, destination OK"}
+        Join["Consume the token, mint a new one<br/><i>Webex Join</i> or <i>Dial</i>,<br/>then send any PIN as DTMF"]
+        Joined(["Meeting joined"])
+        Alert["Alert shown on the screen<br/>e.g. 'QR code expired -<br/>scan the new code and try again'"]
+
+        Event --> Check
+        Check -->|"Yes"| Join
+        Join --> Joined
+        Check -->|"No"| Alert
+    end
+
+    Endpoint -->|"1. Cloud xAPI request<br/>deviceId + encoded payload"| Cloud
+    Cloud -->|"2. Message Send<br/>event delivered"| RoomOS
+
+    %% Animation (read by scripts/build-mermaid-svgs.mjs; see its header comment for the syntax)
+    %% @scenario Valid token: the macro joins the meeting
+    %%   node Endpoint
+    %%   edge Endpoint -> Cloud
+    %%   node Cloud
+    %%   edge Cloud -> RoomOS
+    %%   node Event
+    %%   edge Event -> Check
+    %%   node Check
+    %%   edge Check -> Join
+    %%   node Join
+    %%   edge Join -> Joined
+    %%   node Joined
+    %% @scenario Expired, reused or busy: an error is shown on the device
+    %%   node Endpoint
+    %%   edge Endpoint -> Cloud
+    %%   node Cloud
+    %%   edge Cloud -> RoomOS
+    %%   node Event
+    %%   edge Event -> Check
+    %%   node Check
+    %%   edge Check -> Alert ended
+    %%   node Alert ended

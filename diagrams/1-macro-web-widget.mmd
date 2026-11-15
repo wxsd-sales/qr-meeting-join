@@ -1,0 +1,43 @@
+flowchart TB
+
+    subgraph RoomOS["RoomOS Device"]
+        direction LR
+        Start(["Macro starts"])
+        Identity["Read the device ID and name<br/><i>Status.Webex.DeveloperId</i><br/><i>UserInterface.ContactInfo.Name</i>"]
+        Token["Mint a one-time token<br/>shown for the refresh interval,<br/>accepted for refresh + grace"]
+        Save["Save the web widget<br/><i>WebWidget.Save</i><br/>same PanelId, new URL hash"]
+        Widget@{ shape: div-rect, label: "Web widget on the OSD<br/>renders the QR code" }
+        Timer(["Refresh timer fires<br/>every TOKEN_REFRESH_SECONDS"])
+
+        Start --> Identity
+        Identity --> Token
+        Token --> Save
+        Save --> Widget
+        Timer --> Token
+    end
+
+    Host["Widget page host<br/>(GitHub Pages or self-hosted)"]
+
+    RoomOS -->|"Widget page loaded<br/>with #d #n #t #x #s #e<br/>and display text"| Host
+
+    %% Animation (read by scripts/build-mermaid-svgs.mjs; see its header comment for the syntax)
+    %% @scenario Startup: read identity, mint a token, save the web widget
+    %%   node Start
+    %%   edge Start -> Identity
+    %%   node Identity
+    %%   edge Identity -> Token
+    %%   node Token
+    %%   edge Token -> Save
+    %%   node Save
+    %%   edge Save -> Widget
+    %%   node Widget
+    %%   edge RoomOS -> Host
+    %%   node Host
+    %% @scenario Refresh: a new token replaces the widget's URL hash
+    %%   node Timer
+    %%   edge Timer -> Token
+    %%   node Token
+    %%   edge Token -> Save
+    %%   node Save
+    %%   edge Save -> Widget
+    %%   node Widget

@@ -1,11 +1,14 @@
-// Generated from project.config.json by scripts/apply-config.mjs - do not edit.
+// Static app configuration for this project. Edit the values below directly if they need to change.
 window.APP_CONFIG = {
-  "name": "my-macro",
-  "title": "My Macro",
-  "hasButton": true,
-  "buttonName": "My Macro",
-  "pagesBaseUrl": "https://wxsd-sales.github.io/my-macro",
-  "wizardUrl": "https://wxsd-sales.github.io/my-macro/wizard/",
-  "webappUrl": "https://wxsd-sales.github.io/my-macro/webapp/",
-  "repoUrl": "https://github.com/wxsd-sales/my-macro"
+  "name": "qr-meeting-join",
+  "title": "QR Meeting Join",
+  "pagesBaseUrl": "https://wxsd-sales.github.io/qr-meeting-join",
+  "wizardUrl": "https://wxsd-sales.github.io/qr-meeting-join/wizard/",
+  "webappUrl": "https://wxsd-sales.github.io/qr-meeting-join/webapp/",
+  "widgetUrl": "https://wxsd-sales.github.io/qr-meeting-join/widget/",
+  "repoUrl": "https://github.com/wxsd-sales/qr-meeting-join",
+  "tokenRefreshSeconds": 120,
+  "tokenGraceSeconds": 120,
+  "widgetTitle": "Join your meeting",
+  "widgetSubtitle": "Scan with your phone camera"
 };

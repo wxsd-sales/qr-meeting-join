@@ -60,8 +60,8 @@
       integrity="sha384-xo4f17YKVYq4xv2I3xxGoS+l3GhukPTuhpQTP7FT+M0nq9gCMQkzpohl5DJo6Zom"
       crossorigin="anonymous"
     />
-    <title>My Macro</title>
-    <!-- Generated from project.config.json by scripts/apply-config.mjs. -->
+    <title>QR Meeting Join</title>
+    <!-- Static app configuration values for this project. -->
     <script src="app-config.js"></script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -197,52 +197,106 @@
             <h2>Macro Settings</h2>
             <p>
               Configure the macro, then open the <strong>Export</strong> tab to
-              copy the generated <code>CONFIG</code> block into
-              <code>macros/main.js</code>.
+              download it or copy the generated <code>CONFIG</code> block.
             </p>
 
             <form class="config-form" id="wizard-form" autocomplete="off">
-              <div class="toggle-list">
-                <div class="toggle-row">
-                  <div class="toggle-row__text">
-                    <span class="toggle-row__label" id="has-button-label"
-                      >Home screen button</span
-                    >
-                    <span class="toggle-row__hint"
-                      >Adds a button to the device home screen that opens the
-                      web app. Turn this off if the macro doesn't need
-                      one.</span
-                    >
-                  </div>
-                  <label class="switch">
-                    <input
-                      class="switch__input"
-                      type="checkbox"
-                      id="has-button"
-                      name="has-button"
-                      aria-labelledby="has-button-label"
-                      checked
-                    />
-                    <span class="switch__track"
-                      ><span class="switch__thumb"></span
-                    ></span>
-                  </label>
-                </div>
+              <div class="field">
+                <label class="field__label" for="join-endpoint"
+                  >Join endpoint</label
+                >
+                <input
+                  class="field__input"
+                  type="url"
+                  id="join-endpoint"
+                  name="join-endpoint"
+                  placeholder="https://hooks.example.com/join"
+                />
+                <span class="field__hint"
+                  >Webhook URL of your Webex Connect flow, AWS Lambda function
+                  URL or any backend. The phone web app POSTs the device ID,
+                  one-time token and chosen meeting here (unauthenticated for
+                  now). It is carried in the QR code, so the hosted or a
+                  self-hosted copy of the web app can use it. See
+                  <code>docs/backend-contract.md</code>.</span
+                >
               </div>
-              <div class="field" id="button-name-field">
-                <label class="field__label" for="button-name"
-                  >Button name</label
+              <div class="field">
+                <label class="field__label" for="widget-title"
+                  >Widget heading</label
                 >
                 <input
                   class="field__input"
                   type="text"
-                  id="button-name"
-                  name="button-name"
-                  placeholder="My Macro"
+                  id="widget-title"
+                  name="widget-title"
+                  placeholder="Join your meeting"
                 />
                 <span class="field__hint"
-                  >Shown on the device home screen and used as the WebView
-                  title.</span
+                  >Shown above the QR code on the device.</span
+                >
+              </div>
+              <div class="field">
+                <label class="field__label" for="widget-subtitle"
+                  >Widget instructions</label
+                >
+                <input
+                  class="field__input"
+                  type="text"
+                  id="widget-subtitle"
+                  name="widget-subtitle"
+                  placeholder="Scan with your phone camera"
+                />
+                <span class="field__hint">Shown under the QR code.</span>
+              </div>
+              <div class="field">
+                <label class="field__label" for="refresh-seconds"
+                  >QR refresh interval (seconds)</label
+                >
+                <input
+                  class="field__input"
+                  type="number"
+                  id="refresh-seconds"
+                  name="refresh-seconds"
+                  placeholder="120"
+                  min="10"
+                  max="3600"
+                />
+                <span class="field__hint"
+                  >How often a new one-time token is generated and shown.</span
+                >
+              </div>
+              <div class="field">
+                <label class="field__label" for="grace-seconds"
+                  >Grace period (seconds)</label
+                >
+                <input
+                  class="field__input"
+                  type="number"
+                  id="grace-seconds"
+                  name="grace-seconds"
+                  placeholder="120"
+                  min="10"
+                  max="3600"
+                />
+                <span class="field__hint"
+                  >Extra time a token is still accepted after it is replaced, so
+                  a user who scans just before a refresh can sign in and pick a
+                  meeting. A scan is valid for refresh + grace.</span
+                >
+              </div>
+              <div class="field">
+                <label class="field__label" for="widget-url">Widget URL</label>
+                <input
+                  class="field__input"
+                  type="url"
+                  id="widget-url"
+                  name="widget-url"
+                  placeholder="https://org.github.io/repo/widget/"
+                />
+                <span class="field__hint"
+                  >Defaults to the GitHub Pages widget. Point this at your own
+                  server if you self-host (see Export).</span
                 >
               </div>
               <div class="field">
@@ -255,7 +309,8 @@
                   placeholder="https://org.github.io/repo/webapp/"
                 />
                 <span class="field__hint"
-                  >The page the macro opens in an on-device WebView.</span
+                  >The phone sign-in page the QR code opens. Defaults to GitHub
+                  Pages.</span
                 >
               </div>
             </form>
@@ -309,6 +364,49 @@
                 role="status"
                 aria-live="polite"
               ></p>
+            </div>
+
+            <h2 class="section-gap">Self-hosting</h2>
+            <p>
+              Prefer to host the pages on your own web server? Download a
+              bundle, upload it anywhere that serves static files over HTTPS,
+              then set the <strong>Widget URL</strong> /
+              <strong>Web app URL</strong> above to match.
+            </p>
+            <form class="config-form" autocomplete="off">
+              <div class="field">
+                <label class="field__label" for="client-id"
+                  >Integration client ID</label
+                >
+                <input
+                  class="field__input"
+                  type="text"
+                  id="client-id"
+                  placeholder="C…"
+                />
+                <span class="field__hint"
+                  >Written into the web app bundle's <code>config.js</code>. The
+                  integration's redirect URI must equal your Web app URL.</span
+                >
+              </div>
+            </form>
+            <div class="code-output__actions">
+              <button
+                id="download-widget"
+                type="button"
+                class="icon-button icon-button--with-label secondary-button"
+              >
+                <span class="icon icon-download-bold" aria-hidden="true"></span>
+                <span class="icon-button__label">Download widget bundle</span>
+              </button>
+              <button
+                id="download-webapp"
+                type="button"
+                class="icon-button icon-button--with-label secondary-button"
+              >
+                <span class="icon icon-download-bold" aria-hidden="true"></span>
+                <span class="icon-button__label">Download web app bundle</span>
+              </button>
             </div>
           </section>
         </div>

@@ -4,18 +4,26 @@ import { buildSnippet, injectConfig } from "../../wizard/snippet.js";
 describe("buildSnippet", () => {
   test("emits CONFIG markers with JSON-encoded values", () => {
     const snippet = buildSnippet({
-      name: "my-macro",
-      webappUrl: "https://example.github.io/my-macro/webapp/",
-      hasButton: true,
-      buttonName: "My Macro",
+      name: "qr-meeting-join",
+      widgetUrl: "https://example.github.io/qr-meeting-join/widget/",
+      webappUrl: "https://example.github.io/qr-meeting-join/webapp/",
+      joinEndpoint: "https://hooks.example.com/join",
+      tokenRefreshSeconds: 90,
+      tokenGraceSeconds: 45,
+      widgetTitle: "Hi",
+      widgetSubtitle: "Scan",
     });
     expect(snippet).toBe(
       [
         "// CONFIG:start",
-        'const MACRO_NAME = "my-macro";',
-        'const WEBAPP_URL = "https://example.github.io/my-macro/webapp/";',
-        "const HAS_BUTTON = true;",
-        'const BUTTON_NAME = "My Macro";',
+        'const MACRO_NAME = "qr-meeting-join";',
+        'const WIDGET_URL = "https://example.github.io/qr-meeting-join/widget/";',
+        'const WEBAPP_URL = "https://example.github.io/qr-meeting-join/webapp/";',
+        'const JOIN_ENDPOINT = "https://hooks.example.com/join";',
+        "const TOKEN_REFRESH_SECONDS = 90;",
+        "const TOKEN_GRACE_SECONDS = 45;",
+        'const WIDGET_TITLE = "Hi";',
+        'const WIDGET_SUBTITLE = "Scan";',
         "// CONFIG:end",
       ].join("\n"),
     );
@@ -29,17 +37,22 @@ describe("buildSnippet", () => {
   test("defaults missing values to empty strings", () => {
     const snippet = buildSnippet();
     expect(snippet).toContain('const MACRO_NAME = "";');
-    expect(snippet).toContain('const BUTTON_NAME = "";');
+    expect(snippet).toContain("const TOKEN_REFRESH_SECONDS = 120;");
   });
 
-  test("defaults hasButton to true when omitted", () => {
-    expect(buildSnippet()).toContain("const HAS_BUTTON = true;");
+  test("clamps nonsense token timings back to defaults", () => {
+    const snippet = buildSnippet({
+      tokenRefreshSeconds: "abc",
+      tokenGraceSeconds: 1,
+    });
+    expect(snippet).toContain("const TOKEN_REFRESH_SECONDS = 120;");
+    expect(snippet).toContain("const TOKEN_GRACE_SECONDS = 120;");
   });
 
-  test("honours an explicit hasButton: false", () => {
-    expect(buildSnippet({ hasButton: false })).toContain(
-      "const HAS_BUTTON = false;",
-    );
+  test("has no home-screen button settings", () => {
+    const snippet = buildSnippet();
+    expect(snippet).not.toContain("BUTTON");
+    expect(snippet).toContain('const JOIN_ENDPOINT = "";');
   });
 });
 
@@ -49,8 +62,7 @@ describe("injectConfig", () => {
     "// CONFIG:start",
     'const MACRO_NAME = "old";',
     'const WEBAPP_URL = "old";',
-    "const HAS_BUTTON = true;",
-    'const BUTTON_NAME = "old";',
+    'const JOIN_ENDPOINT = "old";',
     "// CONFIG:end",
     "init();",
     "",
@@ -60,11 +72,10 @@ describe("injectConfig", () => {
     const next = injectConfig(macro, {
       name: "new",
       webappUrl: "https://new/",
-      hasButton: true,
-      buttonName: "New Macro",
+      joinEndpoint: "https://new/hook",
     });
     expect(next).toContain('const MACRO_NAME = "new";');
-    expect(next).toContain('const BUTTON_NAME = "New Macro";');
+    expect(next).toContain('const JOIN_ENDPOINT = "https://new/hook";');
     expect(next.startsWith('import xapi from "xapi";')).toBe(true);
     expect(next.trimEnd().endsWith("init();")).toBe(true);
   });

@@ -1,52 +1,88 @@
-<!-- title:start -->
+# QR Meeting Join
 
-# My Macro
+Scan a QR code on a Webex device to join your calendar meetings from your phone.
 
-<!-- title:end -->
+Show a QR code on a Cisco RoomOS device. Anyone can scan it with their phone,
+sign in with Webex, and tap a meeting from their calendar to have the device
+join it - no meeting-invite forwarding, no device pairing, no Webex app.
 
-<!-- description:start -->
+<p align="center">
+  <img alt="QR code web widget on a Cisco RoomOS device" src="assets/widget-dark.png" width="600" height="600">
+</p>
 
-One sentence description of what this macro does.
-<!-- description:end -->
+## How it works
 
-A template for Cisco RoomOS (Webex) collaboration macros, paired with two static
-web apps published to GitHub Pages: a configuration **wizard** and an optional
-**web app** the macro can open in an on-device WebView for advanced features.
+Nobody taps anything on the device. A person in the room **scans**, then does
+everything else on their own phone:
 
-> The title, description, and URLs above are generated from
-> `project.config.json`. Run `npm run setup` to customise them.
+1. The **macro** reads the device's Webex device ID
+   (`Status.Webex.DeveloperId`) and name, mints a one-time token every
+   `TOKEN_REFRESH_SECONDS`, and saves a RoomOS **web widget**
+   (`UserInterface.Extensions.WebWidget.Save`) pointing at the widget page.
+   Each refresh re-saves it with the same PanelId and a new URL hash carrying
+   those values and the configured join endpoint. It never opens a page, has
+   no button and takes no on-device input.
+2. The **widget** ([`widget/`](widget/)) renders a QR code on the device
+   (600x600, dark theme, white-on-dark QR). The QR code opens the **web app**
+   at `#d=<deviceId>&n=<name>&t=<token>&x=<expiry>&e=<join endpoint>`.
+3. The person **scans the QR code** with their phone camera. The web app opens
+   in the phone's browser and remembers the scan (so it survives sign-in).
+4. If they are not signed in, the web app sends them through the Webex OAuth
+   implicit grant. They sign in with their normal Webex credentials and land
+   back on the web app with their scan restored.
+5. The web app loads their calendar meetings from Webex (Webex, Zoom, Teams
+   and Google Meet meetings it can join) and shows "Want to join with your
+   meeting on _Meeting Room 1234_?".
+6. **The person taps their meeting - in the web app on their phone.** The web
+   app POSTs the device ID, token and meeting details to the join endpoint
+   from the QR code (your Webex Connect webhook, AWS Lambda URL or any backend;
+   unauthenticated for now).
+7. The middleware sends a Cloud xAPI `Message Send` to the device. The macro
+   validates the token (unknown / expired / replayed / device busy -> an
+   on-device alert asking the user to rescan) and joins the meeting.
+
+The middleware is built separately; see
+[`docs/backend-contract.md`](docs/backend-contract.md) for the exact request and
+message formats. Because a Webex Connect inbound webhook cannot return a custom
+response, the phone cannot be told whether the join worked - the device
+reports the outcome on its own screen.
+
+### Token timing
+
+A token is _shown_ for `TOKEN_REFRESH_SECONDS` (default 120) and _accepted_ for
+that plus `TOKEN_GRACE_SECONDS` (default 120), so someone who scans just before
+a refresh can still sign in and pick a meeting. Both are set in the wizard.
+
+## Setup checklist
+
+1. Create a [Webex Integration](https://developer.webex.com/my-apps) with
+   redirect URI equal to your web app URL and scopes `spark:people_read` and
+   `meeting:schedules_read`. Put its client ID in
+   [`webapp/config.js`](webapp/config.js).
+2. Deploy the middleware (webhook / Lambda URL). Its URL is **not** hard-coded
+   in the web app - enter it as the **Join endpoint** in the wizard.
+3. Use the [wizard](#live-urls) to configure and download the macro, and
+   install it on a Webex-registered device.
+
+To self-host, the wizard's **Export** tab downloads the widget and web app as
+zip bundles (the web app bundle includes a generated `config.js`). Upload them
+to any HTTPS static host and set the widget/web app URLs in the wizard. The
+join endpoint travels in the QR code, so the same web app build works with any
+backend; set `allowedEndpointHosts` in `webapp/config.js` to restrict which
+endpoint hosts it will post to.
 
 ## Live URLs
 
-<!-- urls:start -->
-
-- Wizard: https://wxsd-sales.github.io/my-macro/wizard/
-- Web app: https://wxsd-sales.github.io/my-macro/webapp/
-
-<!-- urls:end -->
+- Wizard: https://wxsd-sales.github.io/qr-meeting-join/wizard/
+- Widget (QR code shown on the device): https://wxsd-sales.github.io/qr-meeting-join/widget/
+- Web app (phone sign-in and join): https://wxsd-sales.github.io/qr-meeting-join/webapp/
 
 ## Quick start
 
 ```sh
 npm install
-npm run setup   # names the project and rewrites the derived values
 npm test
 ```
-
-`npm run setup` prompts for the project name, title, description, author,
-GitHub org/repo (auto-detected from your git remote), and whether the macro
-should show a home-screen button (and its label, if so) - not every macro
-needs one. It writes `project.config.json`, then propagates those values into
-`package.json`, the macro, and both web apps. Re-run it any time; it is
-idempotent.
-
-Once you're happy with the configuration, `npm run remove-setup` permanently
-deletes the one-time setup tooling itself (`scripts/setup.mjs`,
-`scripts/apply-config.mjs`, `project.config.json` and its schema) - it exists
-only to name a freshly-created project and isn't meant to be used again
-afterwards. It doesn't touch the macro/wizard's own `CONFIG` block feature
-(see [Installing the macro](#installing-the-macro)), which keeps working for
-as long as the project is deployed.
 
 ## Project structure
 
@@ -57,23 +93,23 @@ as long as the project is deployed.
 ├── assets/           # README screenshots and animated diagrams (generated)
 ├── diagrams/         # mermaid flow diagrams
 ├── macros/           # single-file RoomOS macros
-├── scripts/          # dev automation (setup, apply-config, serve, screenshots, deploy-macro)
-├── webapp/           # optional advanced-feature app (Pages: /webapp/)
-├── wizard/           # macro configuration app (Pages: /wizard/)
-│                     #   app-config.js is generated from project.config.json
-├── project.config.json         # single source of truth (see .schema.json)
-└── project.config.schema.json  # JSON Schema for project.config.json
+├── scripts/          # dev automation (serve, screenshots, deploy-macro)
+├── docs/             # middleware contract
+├── widget/           # on-device QR code page (Pages: /widget/)
+├── webapp/           # phone sign-in + meeting picker (Pages: /webapp/)
+└── wizard/           # macro configuration app (Pages: /wizard/)
 ```
 
 ## Installing the macro
 
 1. Open the device web interface: **Customization > Macro Editor**.
-2. Create a new macro and paste the contents of [`macros/main.js`](macros/main.js).
+2. Create a new macro and paste the contents of [`macros/main.js`](macros/main.js)
+   (or the file downloaded from the wizard).
 3. Save and enable the macro.
 
-The `CONFIG` block in the macro is managed by `npm run apply-config`; use the
-[wizard](#live-urls) to generate an updated block (**Copy config**) or download a
-ready-to-import macro file (**Download macro**) after changing settings.
+The `CONFIG` block in the macro is managed by the [wizard](#live-urls) - use
+**Copy config** to grab an updated block, or **Download macro** for a
+ready-to-import macro file, after changing settings.
 
 ### Deploy to a device over xAPI
 
@@ -93,9 +129,6 @@ Set `MACRO_FILE` to deploy a macro other than `macros/main.js`, and
 
 | Command                    | Description                                                                     |
 | -------------------------- | ------------------------------------------------------------------------------- |
-| `npm run setup`            | Interactive rename; writes `project.config.json` and applies it                 |
-| `npm run apply-config`     | Re-apply `project.config.json` to all files                                     |
-| `npm run remove-setup`     | Permanently delete the one-time setup tooling (see above)                       |
 | `npm run serve`            | Serve the repo locally (wizard + webapp) with Node's http server                |
 | `npm run serve:lan`        | Serve the repo locally on LAN address (wizard + webapp) with Node's http server |
 | `npm run screenshots`      | Capture `assets/*-light.png` / `*-dark.png` via headless Chrome                 |
@@ -111,38 +144,74 @@ Set `CHROME_BIN` to override binary detection.
 
 <!-- Screenshots are regenerated by .github/workflows/screenshots.yml -->
 
-|         | Light                                       | Dark                                      |
-| ------- | ------------------------------------------- | ----------------------------------------- |
-| Wizard  | ![Wizard (light)](assets/wizard-light.png)  | ![Wizard (dark)](assets/wizard-dark.png)  |
-| Web app | ![Web app (light)](assets/webapp-light.png) | ![Web app (dark)](assets/webapp-dark.png) |
-
-## Animated Flow Diagrams
-
-This project can convert Mermaid diagrams into animated SVG files. Running `npm run diagrams` renders every Mermaid file (`*.mmd`) in `diagrams/` to `*-light.svg` and `*-dark.svg` in the `.preview/` directory, along with `.preview/index.html` for viewing them. `.preview/` is git-ignored and only used to inspect new diagrams locally. The animation syntax is documented in the header comment of `scripts/build-mermaid-svgs.mjs`.
-
-### Example Animated Flow Diagram
+## Configuration wizard
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/flowdiagram-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/flowdiagram-light.svg">
-  <img alt="Example animated flow diagrams" src="assets/flowdiagram-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/wizard-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/wizard-light.png">
+  <img alt="Configuration wizard" src="assets/wizard-light.png" width="100%">
 </picture>
 
-### Example usage within README markdown
+## Phone web app
 
-```markdown
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/flowdiagram-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/flowdiagram-light.svg">
-  <img alt="Example animated flow diagrams" src="assets/flowdiagram-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/webapp-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/webapp-light.png">
+  <img alt="Phone web app" src="assets/webapp-light.png" width="100%">
 </picture>
-```
 
-Diagram SVGs are automatically updated via the GitHub Actions workflow `build-diagrams.yml`, which runs on changes to `diagrams/**` (or `package.json` / `package-lock.json`) pushed to `main` and commits the generated SVGs back to `assets/`. Local runs never write to `assets/`; `npm run diagrams:publish` only works on GitHub Actions.
+## Flow diagrams
+
+### 1. Macro start-up and the web widget
+
+When the macro starts it reads the device's Webex device ID and name, mints a
+one-time token and saves the web widget. A timer repeats the mint-and-save step
+every `TOKEN_REFRESH_SECONDS`, re-saving the widget with the same PanelId and a
+new URL hash. The widget page itself is loaded from GitHub Pages or your own
+host.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/1-macro-web-widget-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/1-macro-web-widget-light.svg">
+  <img alt="Macro start-up, token minting and web widget saves" src="assets/1-macro-web-widget-light.svg" width="100%">
+</picture>
+
+### 2. Scanning, signing in and tapping a meeting
+
+A person scans the QR code with their phone camera. The web app opens and
+remembers the scan; if they are not signed in to Webex they sign in first,
+otherwise their meeting list loads straight away. They tap Join on a meeting in
+the web app, which sends the join request to the configured join endpoint.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/2-scan-and-join-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/2-scan-and-join-light.svg">
+  <img alt="Scan, sign-in, meeting list and join request" src="assets/2-scan-and-join-light.svg" width="100%">
+</picture>
+
+### 3. Backend request and the macro joining
+
+The backend behind the join endpoint makes a Cloud xAPI `Message.Send` request
+to the target device ID with the encoded join payload. The macro validates the
+token, device state and destination, then joins the meeting (`Webex Join` or
+`Dial`, plus any PIN as DTMF) - or shows an error on the screen, for example
+when the QR code has expired.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/3-backend-message-send-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/3-backend-message-send-light.svg">
+  <img alt="Cloud xAPI Message Send, token validation and join or error" src="assets/3-backend-message-send-light.svg" width="100%">
+</picture>
+
+The sources are in [`diagrams/`](diagrams/). Running `npm run diagrams` renders
+them to `.preview/` (git-ignored) for a local look; the animation syntax is
+documented in the header of `scripts/build-mermaid-svgs.mjs`. The committed SVGs
+in `assets/` are regenerated by the `build-diagrams.yml` workflow when
+`diagrams/**` changes on `main`.
 
 ## Deployment
 
-Pushing to `main` triggers `deploy-pages.yml`, which publishes `wizard/` and
+Pushing to `main` triggers `deploy-pages.yml`, which publishes `wizard/`, `widget/` and
 `webapp/` to GitHub Pages. Enable Pages with the **GitHub Actions** source in
 your repository settings (Settings > Pages).
 
@@ -156,4 +225,4 @@ Everything included is for demo and Proof of Concept purposes only. Use of the s
 
 ## Questions
 
-Please contact the WXSD team at [wxsd@external.cisco.com](mailto:wxsd@external.cisco.com?subject=my-macro) for questions. Or, if you're a Cisco internal employee, reach out to us on the Webex App via our bot (globalexpert@webex.bot). In the "Engagement Type" field, choose the "API/SDK Proof of Concept Integration Development" option to make sure you reach our team.
+Please contact the WXSD team at [wxsd@external.cisco.com](mailto:wxsd@external.cisco.com?subject=qr-meeting-join) for questions. Or, if you're a Cisco internal employee, reach out to us on the Webex App via our bot (globalexpert@webex.bot). In the "Engagement Type" field, choose the "API/SDK Proof of Concept Integration Development" option to make sure you reach our team.

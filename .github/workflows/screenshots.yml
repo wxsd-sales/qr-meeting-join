@@ -6,6 +6,7 @@ on:
     paths:
       - "wizard/**"
       - "webapp/**"
+      - "widget/**"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,6 @@ permissions:
 
 jobs:
   check-branch-protection:
-    if: ${{ !github.event.repository.is_template }}
     runs-on: ubuntu-latest
     outputs:
       protected: ${{ steps.check.outputs.protected }}
@@ -31,8 +31,7 @@ jobs:
   screenshots:
     needs: check-branch-protection
     if: >-
-      ${{ !github.event.repository.is_template &&
-        needs.check-branch-protection.result == 'success' &&
+      ${{ needs.check-branch-protection.result == 'success' &&
         needs.check-branch-protection.outputs.protected != 'true' }}
     runs-on: ubuntu-latest
     steps:

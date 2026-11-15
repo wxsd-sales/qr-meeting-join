@@ -8,5 +8,6 @@ const { url } = await startStaticServer({ root, port });
 console.log(`Serving ${root}`);
 console.log(`  Root:   ${url}/`);
 console.log(`  Wizard: ${url}/wizard/`);
+console.log(`  Widget: ${url}/widget/`);
 console.log(`  Webapp: ${url}/webapp/`);
 console.log("\nPress Ctrl+C to stop.");

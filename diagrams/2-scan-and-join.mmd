@@ -1,0 +1,64 @@
+flowchart TB
+
+    Widget(["QR code on the<br/>RoomOS device"])
+
+    subgraph Phone["Phone browser - web app"]
+        direction LR
+        Scan["Web app opens with<br/>#d #n #t #x #e<br/>and saves the scan"]
+        Signed{"Signed in<br/>to Webex?"}
+        Login["Webex sign-in<br/>(OAuth implicit grant)"]
+        List["Lists the user's meetings<br/>'Join with your meeting on<br/>Meeting Room 1234'"]
+        Tap["User taps Join<br/>on a meeting"]
+        Post["Builds the join request<br/>device ID, token, destination,<br/>meeting type, PINs"]
+
+        Scan --> Signed
+        Signed -->|"No"| Login
+        Signed -->|"Yes"| List
+        Login --> List
+        List --> Tap
+        Tap --> Post
+    end
+
+    Webex["Webex<br/>(OAuth + Meetings API)"]
+    Endpoint["Join endpoint<br/>(Webex Connect webhook /<br/>AWS Lambda / any backend)"]
+
+    Widget -->|"1. Scanned with<br/>the phone camera"| Phone
+    Phone <-->|"2. Sign in (if needed)<br/>and fetch meetings"| Webex
+    Phone -->|"3. POST join request<br/>(unauthenticated)"| Endpoint
+
+    %% Animation (read by scripts/build-mermaid-svgs.mjs; see its header comment for the syntax)
+    %% @scenario First scan: sign in, then tap a meeting
+    %%   node Widget
+    %%   edge Widget -> Phone
+    %%   node Scan
+    %%   edge Scan -> Signed
+    %%   node Signed
+    %%   edge Signed -> Login
+    %%   node Login
+    %%   edge Phone -> Webex
+    %%   node Webex
+    %%   edge Login -> List
+    %%   node List
+    %%   edge List -> Tap
+    %%   node Tap
+    %%   edge Tap -> Post
+    %%   node Post
+    %%   edge Phone -> Endpoint
+    %%   node Endpoint
+    %% @scenario Already signed in: straight to the meeting list
+    %%   node Widget
+    %%   edge Widget -> Phone
+    %%   cluster Phone
+    %%   node Scan
+    %%   edge Scan -> Signed
+    %%   node Signed
+    %%   edge Signed -> List
+    %%   node List
+    %%   edge Phone -> Webex
+    %%   node Webex
+    %%   edge List -> Tap
+    %%   node Tap
+    %%   edge Tap -> Post
+    %%   node Post
+    %%   edge Phone -> Endpoint
+    %%   node Endpoint

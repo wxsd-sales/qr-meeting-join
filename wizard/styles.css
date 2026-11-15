@@ -698,3 +698,6 @@ h2 {
     grid-template-columns: 1fr;
   }
 }
+.section-gap {
+  margin-top: 2rem;
+}

@@ -1,15 +1,12 @@
 {
-  "name": "my-macro",
+  "name": "qr-meeting-join",
   "version": "1.0.0",
-  "description": "One sentence description of what this macro does.",
+  "description": "Scan a QR code on a Webex device to join your calendar meetings from your phone.",
   "license": "MIT",
-  "author": "",
+  "author": "William Mills",
   "type": "module",
   "main": "macros/main.js",
   "scripts": {
-    "setup": "node scripts/setup.mjs",
-    "apply-config": "node scripts/apply-config.mjs",
-    "remove-setup": "node scripts/remove-setup.mjs",
     "serve": "node scripts/serve.mjs",
     "screenshots": "node scripts/screenshot.mjs",
     "deploy:macro": "node scripts/deploy-macro.mjs",

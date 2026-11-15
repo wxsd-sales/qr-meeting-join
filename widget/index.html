@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Meeting Join</title>
+    <link rel="stylesheet" href="widget.css" />
+  </head>
+  <body>
+    <main class="widget">
+      <h1 id="title">Join your meeting</h1>
+      <div class="qr-frame" id="qr-frame">
+        <canvas id="qr" aria-label="QR code"></canvas>
+      </div>
+      <p class="subtitle" id="subtitle">Scan with your phone camera</p>
+      <p class="countdown" id="countdown" aria-live="off"></p>
+      <p class="error" id="error" role="alert" hidden></p>
+    </main>
+    <script type="module" src="widget.js"></script>
+  </body>
+</html>

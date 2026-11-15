@@ -1,4 +1,5 @@
 import { buildSnippet, injectConfig } from "./snippet.js";
+import { BUNDLES, buildWebappConfigJs, makeZip } from "./bundle.js";
 
 const config = window.APP_CONFIG ?? {};
 
@@ -22,141 +23,162 @@ const MACRO_SOURCE_URL = "../macros/main.js";
   }
 })();
 
-/* Settings form -> live macro config snippet + macro download. */
+/* Settings form -> live macro config snippet, macro download, bundles. */
 (function initSettings() {
-  const hasButtonInput = document.getElementById("has-button");
-  const buttonNameField = document.getElementById("button-name-field");
-  const buttonNameInput = document.getElementById("button-name");
-  const webappUrlInput = document.getElementById("webapp-url");
-  const output = document.getElementById("output");
-  const copyButton = document.getElementById("copy-button");
-  const downloadButton = document.getElementById("download-button");
-  const exportStatus = document.getElementById("export-status");
+  const $ = (id) => document.getElementById(id);
+  const output = $("output");
+  const exportStatus = $("export-status");
+  if (!output) return;
 
-  if (!hasButtonInput || !buttonNameInput || !webappUrlInput || !output) {
-    return;
-  }
-
-  hasButtonInput.checked = config.hasButton !== false;
-  // MACRO_NAME is fixed to the project's identity - the button label is a
-  // separate, editable, human-facing value that defaults to the title.
-  buttonNameInput.value = config.buttonName ?? config.title ?? "";
-  webappUrlInput.value = config.webappUrl ?? "";
-
-  const syncButtonNameVisibility = () => {
-    if (buttonNameField) {
-      buttonNameField.hidden = !hasButtonInput.checked;
-    }
+  const fields = {
+    joinEndpoint: $("join-endpoint"),
+    widgetTitle: $("widget-title"),
+    widgetSubtitle: $("widget-subtitle"),
+    tokenRefreshSeconds: $("refresh-seconds"),
+    tokenGraceSeconds: $("grace-seconds"),
+    widgetUrl: $("widget-url"),
+    webappUrl: $("webapp-url"),
   };
-  syncButtonNameVisibility();
+
+  fields.widgetTitle.value = config.widgetTitle ?? "";
+  fields.widgetSubtitle.value = config.widgetSubtitle ?? "";
+  fields.tokenRefreshSeconds.value = config.tokenRefreshSeconds ?? 120;
+  fields.tokenGraceSeconds.value = config.tokenGraceSeconds ?? 120;
+  fields.widgetUrl.value = config.widgetUrl ?? "";
+  fields.webappUrl.value = config.webappUrl ?? "";
 
   const getValues = () => ({
     name: config.name ?? "",
-    hasButton: hasButtonInput.checked,
-    buttonName: buttonNameInput.value.trim(),
-    webappUrl: webappUrlInput.value.trim(),
+    joinEndpoint: fields.joinEndpoint.value.trim(),
+    widgetTitle: fields.widgetTitle.value,
+    widgetSubtitle: fields.widgetSubtitle.value,
+    tokenRefreshSeconds: fields.tokenRefreshSeconds.value,
+    tokenGraceSeconds: fields.tokenGraceSeconds.value,
+    widgetUrl: fields.widgetUrl.value.trim(),
+    webappUrl: fields.webappUrl.value.trim(),
   });
-
-  const downloadName = () => {
-    const base =
-      (config.name || "macro")
-        .replace(/[^a-zA-Z0-9-_]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "macro";
-    return `${base}.js`;
-  };
 
   const setExportStatus = (message, kind = "") => {
     if (!exportStatus) return;
     exportStatus.textContent = message;
-    if (kind) {
-      exportStatus.dataset.kind = kind;
-    } else {
-      delete exportStatus.dataset.kind;
+    if (kind) exportStatus.dataset.kind = kind;
+    else delete exportStatus.dataset.kind;
+  };
+
+  const save = (blob, fileName) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const endpointProblem = () => {
+    const value = fields.joinEndpoint.value.trim();
+    if (!value) return "Set a join endpoint or scans will not be able to join.";
+    try {
+      const url = new URL(value);
+      const local = ["localhost", "127.0.0.1"].includes(url.hostname);
+      if (url.protocol === "https:" || (local && url.protocol === "http:")) {
+        return "";
+      }
+    } catch {
+      /* fall through */
     }
+    return "The join endpoint must be a valid https:// URL.";
   };
 
   const updatePreview = () => {
-    // Assign via textContent (never innerHTML) so user input is treated as text.
+    const problem = endpointProblem();
+    setExportStatus(problem, problem ? "error" : "");
+    // textContent (never innerHTML) so user input is treated as text.
     output.textContent = buildSnippet(getValues());
   };
 
-  hasButtonInput.addEventListener("change", () => {
-    syncButtonNameVisibility();
-    updatePreview();
-  });
-  buttonNameInput.addEventListener("input", updatePreview);
-  webappUrlInput.addEventListener("input", updatePreview);
+  Object.values(fields).forEach((el) =>
+    el.addEventListener("input", updatePreview),
+  );
   updatePreview();
 
-  if (copyButton) {
-    copyButton.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(output.textContent);
-      } catch {
-        setExportStatus(
-          "Clipboard access was blocked by the browser.",
-          "error",
-        );
-        return;
-      }
+  $("copy-button")?.addEventListener("click", async () => {
+    const button = $("copy-button");
+    try {
+      await navigator.clipboard.writeText(output.textContent);
+    } catch {
+      setExportStatus("Clipboard access was blocked by the browser.", "error");
+      return;
+    }
+    const label = button.querySelector(".icon-button__label");
+    const icon = button.querySelector(".icon");
+    const previous = label.textContent;
+    label.textContent = "Copied";
+    icon.classList.replace("icon-copy-bold", "icon-check-circle-bold");
+    window.setTimeout(() => {
+      label.textContent = previous;
+      icon.classList.replace("icon-check-circle-bold", "icon-copy-bold");
+    }, 1600);
+  });
 
-      const label = copyButton.querySelector(".icon-button__label");
-      const icon = copyButton.querySelector(".icon");
-      const previousLabel = label.textContent;
+  $("download-button")?.addEventListener("click", async () => {
+    setExportStatus("");
+    let macro;
+    try {
+      const response = await fetch(MACRO_SOURCE_URL, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      macro = injectConfig(await response.text(), getValues());
+    } catch {
+      setExportStatus(
+        "Could not build the macro. Use Copy config instead.",
+        "error",
+      );
+      return;
+    }
+    const base =
+      (config.name || "macro")
+        .replace(/[^a-zA-Z0-9-_]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "macro";
+    save(new Blob([macro], { type: "text/javascript" }), `${base}.js`);
+    setExportStatus(`Downloaded ${base}.js.`, "success");
+  });
 
-      label.textContent = "Copied";
-      icon.classList.remove("icon-copy-bold");
-      icon.classList.add("icon-check-circle-bold");
-
-      window.setTimeout(() => {
-        label.textContent = previousLabel;
-        icon.classList.remove("icon-check-circle-bold");
-        icon.classList.add("icon-copy-bold");
-      }, 1600);
-    });
+  async function downloadBundle(kind) {
+    setExportStatus("");
+    const spec = BUNDLES[kind];
+    try {
+      const files = await Promise.all(
+        spec.files.map(async (name) => {
+          if (kind === "webapp" && name === "config.js") {
+            return {
+              name,
+              data: new TextEncoder().encode(
+                buildWebappConfigJs({
+                  clientId: $("client-id").value.trim(),
+                }),
+              ),
+            };
+          }
+          const response = await fetch(`../${spec.dir}/${name}`, {
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+          return { name, data: new Uint8Array(await response.arrayBuffer()) };
+        }),
+      );
+      save(new Blob([makeZip(files)], { type: "application/zip" }), spec.zip);
+      setExportStatus(`Downloaded ${spec.zip}.`, "success");
+    } catch (error) {
+      setExportStatus(`Could not build the bundle: ${error.message}`, "error");
+    }
   }
-
-  if (downloadButton) {
-    downloadButton.addEventListener("click", async () => {
-      setExportStatus("");
-
-      let source;
-      try {
-        const response = await fetch(MACRO_SOURCE_URL, { cache: "no-store" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        source = await response.text();
-      } catch {
-        setExportStatus(
-          "Could not load the macro source. Use Copy config instead.",
-          "error",
-        );
-        return;
-      }
-
-      let macro;
-      try {
-        macro = injectConfig(source, getValues());
-      } catch {
-        setExportStatus(
-          "The macro source is missing its CONFIG markers.",
-          "error",
-        );
-        return;
-      }
-
-      const fileName = downloadName();
-      const blob = new Blob([macro], { type: "text/javascript" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setExportStatus(`Downloaded ${fileName}.`, "success");
-    });
-  }
+  $("download-widget")?.addEventListener("click", () =>
+    downloadBundle("widget"),
+  );
+  $("download-webapp")?.addEventListener("click", () =>
+    downloadBundle("webapp"),
+  );
 })();
 
 /*
