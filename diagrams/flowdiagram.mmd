@@ -1,0 +1,42 @@
+flowchart LR
+
+    %% Actor & Initial Interaction
+    User(["👤 User"]) -->|"1. Taps UI Extension"| RoomOS
+
+    %% RoomOS Device Boundary
+    subgraph RoomOS["RoomOS Device"]
+        direction TB
+
+        Button["UI Extension Button<br/><i>'my-macro-open'</i>"]
+        Macro@{ shape: console, label: "RoomOS Macro" }
+        WebView@{ shape: div-rect, label: "WebView<br/>(My Web App)<br/>PanelId: '11:22:33..'/<br/>Origin: 'OSD'" }
+
+        %% Internal Device Event Flow
+        Button -->|"2. xFeedback: PanelClicked<br/>PanelId: '11:22:33..'/<br/>Origin: 'OSD'"| Macro
+
+
+    end
+
+    %% External Web Server Infrastructure
+    subgraph WebServer["External Web Server"]
+        direction TB
+        WebApp["My Web App<br/>(HTML / JS / CSS)"]
+    end
+
+    Macro -->|"3: xCommand UserInterface<br/>WebView Display<br/>PanelId: '11:22:33..'/<br/>Origin: 'OSD'"| WebView
+
+
+    %% Web Traffic / Asset Retrieval
+    RoomOS <---> |"4: WebEngine Fetches<br/>Web App"| WebServer
+
+    %% Animation (read by scripts/build-mermaid-svgs.mjs; see its header comment for the syntax)
+    %% @scenario User Taps Button → Opens Web App
+    %%   node User
+    %%   edge User -> RoomOS
+    %%   node Button
+    %%   edge Button -> Macro
+    %%   node Macro
+    %%   edge Macro -> WebView
+    %%   edge RoomOS -> WebServer
+    %%   node WebApp
+    %%   node WebView
