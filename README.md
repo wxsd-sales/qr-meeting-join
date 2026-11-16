@@ -6,9 +6,13 @@ Show a QR code on a Cisco RoomOS device. Anyone can scan it with their phone,
 sign in with Webex, and tap a meeting from their calendar to have the device
 join it - no meeting-invite forwarding, no device pairing, no Webex app.
 
-<p align="center">
-  <img alt="QR code web widget on a Cisco RoomOS device" src="assets/widget-dark.png" width="600" height="600">
-</p>
+<img alt="The QR code web widget on a Cisco RoomOS device's on-screen display" src="assets/osd-dark.png" width="100%">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/phones-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/phones-light.png">
+  <img alt="Scanning the QR code, signing in with Webex and tapping a meeting on a phone" src="assets/phones-light.png" width="100%">
+</picture>
 
 ## How it works
 
@@ -94,6 +98,7 @@ npm test
 ├── .github/workflows # CI: test, deploy Pages, refresh screenshots
 ├── assets/           # README screenshots and animated diagrams (generated)
 ├── diagrams/         # mermaid flow diagrams
+├── preview/          # device and phone frames used for README screenshots
 ├── macros/           # single-file RoomOS macros
 ├── scripts/          # dev automation (serve, screenshots, deploy-macro)
 ├── docs/             # middleware contract
@@ -129,17 +134,17 @@ Set `MACRO_FILE` to deploy a macro other than `macros/main.js`, and
 
 ## Dev scripts
 
-| Command                    | Description                                                                     |
-| -------------------------- | ------------------------------------------------------------------------------- |
-| `npm run serve`            | Serve the repo locally (wizard + webapp) with Node's http server                |
-| `npm run serve:lan`        | Serve the repo locally on LAN address (wizard + webapp) with Node's http server |
-| `npm run screenshots`      | Capture `assets/*-light.png` / `*-dark.png` via headless Chrome                 |
-| `npm run deploy:macro`     | Upload a macro to a device over xAPI (see below)                                |
-| `npm run lint`             | Lint with ESLint                                                                |
-| `npm run format`           | Format with Prettier (`npm run format:check` to verify)                         |
-| `npm run diagrams`         | Render Mermaid diagrams to animated SVGs in `.preview/` (local preview)         |
-| `npm run diagrams:publish` | Render Mermaid diagrams to animated SVGs in `assets/` (GitHub Actions only)     |
-| `npm test`                 | Run the Jest suite                                                              |
+| Command                    | Description                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| `npm run serve`            | Serve the repo locally (wizard + webapp) with Node's http server                     |
+| `npm run serve:lan`        | Serve the repo locally on LAN address (wizard + webapp) with Node's http server      |
+| `npm run screenshots`      | Capture the wizard, device (OSD) and phone previews into `assets/` (headless Chrome) |
+| `npm run deploy:macro`     | Upload a macro to a device over xAPI (see below)                                     |
+| `npm run lint`             | Lint with ESLint                                                                     |
+| `npm run format`           | Format with Prettier (`npm run format:check` to verify)                              |
+| `npm run diagrams`         | Render Mermaid diagrams to animated SVGs in `.preview/` (local preview)              |
+| `npm run diagrams:publish` | Render Mermaid diagrams to animated SVGs in `assets/` (GitHub Actions only)          |
+| `npm test`                 | Run the Jest suite                                                                   |
 
 Screenshots use a headless Chrome/Chromium already installed on your machine.
 Set `CHROME_BIN` to override binary detection.
@@ -152,14 +157,6 @@ Set `CHROME_BIN` to override binary detection.
   <source media="(prefers-color-scheme: dark)" srcset="assets/wizard-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/wizard-light.png">
   <img alt="Configuration wizard" src="assets/wizard-light.png" width="100%">
-</picture>
-
-## Phone web app
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/webapp-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/webapp-light.png">
-  <img alt="Phone web app" src="assets/webapp-light.png" width="100%">
 </picture>
 
 ## Flow diagrams

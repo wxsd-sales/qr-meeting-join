@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Meeting Join - device preview</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@momentum-design/icons@0.54.0/dist/data/MomentumFontIcons.css"
+      integrity="sha384-cRTwUMmzKBtfI4txd/iehWhZp7TowC6EHDTTfeR4fA88pF5oezPFRmSCub32x7JR"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="preview.css" />
+  </head>
+  <body>
+    <!-- How the web widget appears on a Cisco RoomOS device's on-screen display. -->
+    <main class="stage osd" style="width: 1920px; height: 1080px">
+      <svg
+        class="osd__wallpaper"
+        viewBox="0 0 1920 1080"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#3b1480" />
+            <stop offset="1" stop-color="#5a0f6e" />
+          </linearGradient>
+          <linearGradient id="wave" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#7a1170" />
+            <stop offset="0.55" stop-color="#9c1d6a" />
+            <stop offset="1" stop-color="#b3283c" />
+          </linearGradient>
+          <linearGradient id="foot" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#a21e5a" />
+            <stop offset="1" stop-color="#7a2530" />
+          </linearGradient>
+          <linearGradient id="glow" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#8a2060" />
+            <stop offset="1" stop-color="#d8404a" />
+          </linearGradient>
+        </defs>
+        <rect width="1920" height="1080" fill="url(#base)" />
+        <path
+          d="M0 560 C 250 380 520 120 980 40 C 1380 -20 1700 70 1920 130 L1920 1080 L0 1080 Z"
+          fill="url(#wave)"
+        />
+        <path
+          d="M0 760 C 330 650 700 700 1050 700 C 1450 700 1700 480 1920 330 L1920 1080 L0 1080 Z"
+          fill="url(#foot)"
+          opacity="0.9"
+        />
+        <path
+          d="M1500 1080 C 1650 820 1780 520 1920 330 L1920 1080 Z"
+          fill="url(#glow)"
+          opacity="0.55"
+        />
+      </svg>
+
+      <div class="osd__room">Springwise</div>
+
+      <section class="osd__meeting">
+        <span class="osd__starting">Starting in 5 minutes</span>
+        <span class="osd__title">Daily Sync</span>
+        <span class="osd__line">Organizer: Umar Patel</span>
+        <span class="osd__line">
+          <img
+            alt=""
+            src="https://cdn.jsdelivr.net/npm/@momentum-design/brand-visuals@0.41.0/dist/svg/webex-symbol-common-color-gradient.svg"
+          />
+          10:00 - 11:30
+        </span>
+        <span class="osd__line osd__more">
+          <span class="icon icon-calendar-day-filled" aria-hidden="true"></span>
+          2 more meetings today
+        </span>
+      </section>
+
+      <div class="osd__widget">
+        <iframe id="widget" title="QR Meeting Join web widget"></iframe>
+      </div>
+    </main>
+    <script type="module">
+      import { fitStage, widgetUrl } from "./preview.js";
+      document.getElementById("widget").src = widgetUrl();
+      fitStage();
+    </script>
+  </body>
+</html>

@@ -77,7 +77,7 @@ function capture(chromeBin, url, outPath, { width, height }) {
       "--hide-scrollbars",
       "--force-color-profile=srgb",
       `--window-size=${width},${height}`,
-      "--virtual-time-budget=2500",
+      "--virtual-time-budget=8000",
       `--screenshot=${outPath}`,
       url,
     ];
@@ -119,24 +119,14 @@ function capture(chromeBin, url, outPath, { width, height }) {
 const chromeBin = resolveChrome();
 mkdirSync(OUT_DIR, { recursive: true });
 
-// Mock values so the captures show what a real scan would look like. The QR
-// code encodes these, pointing at the web app.
-// Expiries are relative to now so the widget's countdown looks realistic
-// (about 1:40 left until refresh) and the web app does not show "expired".
-const nowSeconds = Math.floor(Date.now() / 1000);
-const demoScan = {
-  d: "Y2lzY29zcGFyazovL3VzL0RFVklDRS9kZW1v",
-  n: "Meeting Room 1234",
-  t: "3f9c0d7a5b8e4c1a9d2f6e8b7a4c1d05",
-  x: String(nowSeconds + 220),
-  e: "https://hooks.example.com/join",
-};
-const encode = (values) => `${new URLSearchParams(values)}&`;
-
-// Force each theme via the "#theme=" hash so captures are deterministic and do
-// not depend on the CI runner's OS colour-scheme preference. The widget is
-// always dark (RoomOS always renders web widgets with a dark UI) and 600x600,
-// the size the device renders web widgets at.
+// The widget and web app are captured through preview pages that wrap them the
+// way they appear in real use: the widget on a RoomOS on-screen display, and
+// the web app inside phone frames (see preview/). Mock values and relative
+// expiries live in preview/preview.js so nothing looks expired.
+//
+// Each theme is forced via "#theme=" so captures are deterministic and do not
+// depend on the CI runner's OS colour-scheme preference. The device preview is
+// always dark (RoomOS web widgets are always rendered dark).
 const targets = [
   {
     path: "/wizard/",
@@ -146,29 +136,22 @@ const targets = [
     size: { width: WIDTH, height: HEIGHT },
   },
 ];
-if (existsSync(join(ROOT, "widget", "index.html"))) {
+if (existsSync(join(ROOT, "preview", "osd.html"))) {
   targets.push({
-    path: "/widget/",
-    name: "widget",
-    hash: encode({
-      app: "https://wxsd-sales.github.io/qr-meeting-join/webapp/",
-      ...demoScan,
-      s: String(nowSeconds + 100),
-      title: "Join your meeting",
-      sub: "Scan with your phone camera",
-    }),
+    path: "/preview/osd.html",
+    name: "osd",
+    hash: "",
     themes: ["dark"],
-    size: { width: 600, height: 600 },
+    size: { width: 1600, height: 900 },
   });
 }
-if (existsSync(join(ROOT, "webapp", "index.html"))) {
+if (existsSync(join(ROOT, "preview", "phones.html"))) {
   targets.push({
-    path: "/webapp/",
-    name: "webapp",
-    hash: encode(demoScan),
+    path: "/preview/phones.html",
+    name: "phones",
+    hash: "",
     themes: ["light", "dark"],
-    // Phone-shaped (headless Chrome will not go narrower than ~500px).
-    size: { width: 500, height: 800 },
+    size: { width: 1600, height: 1000 },
   });
 }
 

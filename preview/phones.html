@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Meeting Join - phone preview</title>
+    <link rel="stylesheet" href="preview.css" />
+  </head>
+  <body>
+    <!-- The phone web app, shown inside a phone frame. -->
+    <main class="stage phones" style="width: 1600px; height: 1000px">
+      <div class="phone-col">
+        <div class="phone">
+          <div class="phone__island"></div>
+          <div class="phone__screen">
+            <div class="camera">
+              <div class="camera__frame">
+                <div class="camera__corner camera__corner--tl"></div>
+                <div class="camera__corner camera__corner--tr"></div>
+                <div class="camera__corner camera__corner--bl"></div>
+                <div class="camera__corner camera__corner--br"></div>
+                <div class="camera__qr">
+                  <iframe id="qr" title="QR code"></iframe>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-caption">1. Scan the QR code</div>
+      </div>
+
+      <div class="phone-col">
+        <div class="phone">
+          <div class="phone__island"></div>
+          <div class="phone__screen phone__screen--app">
+            <iframe id="signin" title="Sign in with Webex"></iframe>
+          </div>
+        </div>
+        <div class="phone-caption">2. Sign in with Webex</div>
+      </div>
+
+      <div class="phone-col">
+        <div class="phone">
+          <div class="phone__island"></div>
+          <div class="phone__screen phone__screen--app">
+            <iframe id="meetings" title="Choose a meeting"></iframe>
+          </div>
+        </div>
+        <div class="phone-caption">3. Tap your meeting to join</div>
+      </div>
+    </main>
+    <script type="module">
+      import { fitStage, theme, webappUrl, widgetUrl } from "./preview.js";
+      const themeName = theme();
+      document.getElementById("qr").src = widgetUrl();
+      document.getElementById("signin").src = webappUrl({ themeName });
+      document.getElementById("meetings").src = webappUrl({
+        demo: true,
+        themeName,
+      });
+      fitStage();
+    </script>
+  </body>
+</html>

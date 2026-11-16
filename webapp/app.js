@@ -526,7 +526,19 @@ $("scan-new").addEventListener("click", beginScan);
 $("scanner-cancel").addEventListener("click", () => endScan());
 $("done-back").addEventListener("click", loadMeetings);
 
+/** Screenshot/preview mode (?demo=meetings): mock data, no sign-in. */
+async function runDemo() {
+  const { demo } = await import("./demo.js");
+  state.user = demo.user;
+  state.pmr = demo.pmr;
+  state.meetings = demo.meetings;
+  state.loading = { pmr: false, meetings: false };
+  show("view-meetings");
+  renderMeetings();
+}
+
 (async function init() {
+  const demoMode = new URLSearchParams(location.search).get("demo");
   const result = consumeUrl();
   state.scan = result.type === "scan" ? result.scan : loadPendingScan();
 
@@ -536,6 +548,7 @@ $("done-back").addEventListener("click", loadMeetings);
       "error",
     );
   }
+  if (demoMode === "meetings") return runDemo();
   if (result.error) {
     banner(result.error, "error");
     return signedOut(result.error);

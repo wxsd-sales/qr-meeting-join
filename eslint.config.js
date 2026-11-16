@@ -26,7 +26,12 @@ export default [
     },
   },
   {
-    files: ["wizard/**/*.js", "webapp/**/*.js", "widget/**/*.js"],
+    files: [
+      "wizard/**/*.js",
+      "webapp/**/*.js",
+      "widget/**/*.js",
+      "preview/**/*.js",
+    ],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: "module",

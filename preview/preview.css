@@ -1,0 +1,254 @@
+/* Presentation wrappers for README screenshots (dev only, not deployed). */
+:root {
+  color-scheme: dark;
+  --page: #0e0e12;
+  --caption: #e8e8ee;
+  --app-bg: #121212;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #f2f3f7;
+  --caption: #1c1c22;
+  --app-bg: #f7f7f7;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--page);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+/* A fixed-size stage that preview.js scales to fit the window. */
+.stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+/* ------------------------------------------------------------------ OSD */
+.osd {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  color: #fff;
+  background: #3a1478;
+}
+.osd__wallpaper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.osd__room {
+  position: absolute;
+  top: 38px;
+  left: 28px;
+  font-size: 26px;
+  font-weight: 700;
+}
+.osd__meeting {
+  position: absolute;
+  left: 476px;
+  top: 420px;
+  display: grid;
+  gap: 12px;
+}
+.osd__starting {
+  color: #5ee2c4;
+  font-size: 26px;
+}
+.osd__title {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.osd__line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 26px;
+}
+.osd__line img {
+  width: 28px;
+  height: 28px;
+}
+.osd__more {
+  margin-top: 18px;
+  font-size: 23px;
+  color: #ffffffe6;
+}
+.osd__more .icon {
+  font-size: 28px;
+}
+.osd__widget {
+  position: absolute;
+  left: 1009px;
+  top: 240px;
+  width: 600px;
+  height: 600px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 26px 60px #00000066;
+  background: #121212;
+}
+.osd__widget iframe {
+  width: 600px;
+  height: 600px;
+  border: 0;
+  display: block;
+}
+
+/* --------------------------------------------------------------- phones */
+.phones {
+  width: 1600px;
+  height: 1000px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 90px;
+  padding-top: 40px;
+}
+.phone-col {
+  display: grid;
+  gap: 28px;
+  justify-items: center;
+}
+.phone-caption {
+  color: var(--caption);
+  font-size: 26px;
+  font-weight: 600;
+  text-align: center;
+}
+.phone {
+  position: relative;
+  width: 438px;
+  height: 892px;
+  padding: 14px;
+  border-radius: 68px;
+  background: linear-gradient(145deg, #3a3a42, #0c0c10 55%, #2a2a30);
+  box-shadow:
+    0 30px 70px #00000055,
+    inset 0 0 0 2px #55555e;
+}
+.phone::before,
+.phone::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  background: #2a2a30;
+  border-radius: 3px;
+}
+.phone::before {
+  left: -4px;
+  top: 170px;
+  height: 90px;
+}
+.phone::after {
+  right: -4px;
+  top: 230px;
+  height: 130px;
+}
+.phone__screen {
+  position: relative;
+  width: 410px;
+  height: 864px;
+  border-radius: 54px;
+  overflow: hidden;
+  background: #000;
+}
+.phone__screen--app {
+  background: var(--app-bg);
+  padding-top: 54px; /* status bar / dynamic island */
+}
+.phone__screen iframe {
+  width: 410px;
+  height: 864px;
+  border: 0;
+  display: block;
+}
+.phone__screen--app iframe {
+  height: 810px;
+}
+.phone__island {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 50%;
+  width: 118px;
+  height: 34px;
+  margin-left: -59px;
+  border-radius: 20px;
+  background: #000;
+}
+
+/* camera viewfinder (phone 1) */
+.camera {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 20%, #6a2a8a 0, transparent 55%),
+    radial-gradient(circle at 80% 80%, #b03a4a 0, transparent 50%), #1c1030;
+  display: grid;
+  place-items: center;
+}
+.camera__qr {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.camera__qr iframe {
+  width: 600px;
+  height: 600px;
+  border: 0;
+  transform: scale(0.5);
+  transform-origin: 0 0;
+}
+.camera__corner {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border: 5px solid #ffd60a;
+}
+.camera__corner--tl {
+  top: -18px;
+  left: -18px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 22px;
+}
+.camera__corner--tr {
+  top: -18px;
+  right: -18px;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: 22px;
+}
+.camera__corner--bl {
+  bottom: -18px;
+  left: -18px;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: 22px;
+}
+.camera__corner--br {
+  bottom: -18px;
+  right: -18px;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 22px;
+}
+.camera__frame {
+  position: relative;
+}
