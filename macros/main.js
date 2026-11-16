@@ -97,8 +97,8 @@ function checkToken(token, now = Date.now()) {
 /* ------------------------------------------------------------------- URLs */
 
 function toQueryString(params) {
-  if (!params || typeof params !== 'object') {
-    return '';
+  if (!params || typeof params !== "object") {
+    return "";
   }
 
   return Object.keys(params)
@@ -111,25 +111,25 @@ function toQueryString(params) {
       }
 
       // Helper to encode keys and values, converting %20 to + to match URLSearchParams.toString()
-      const encode = (str) => encodeURIComponent(str).replace(/%20/g, '+');
+      const encode = (str) => encodeURIComponent(str).replace(/%20/g, "+");
       const encodedKey = encode(key);
 
       // Handle arrays (e.g., { tag: ['js', 'web'] } -> "tag=js&tag=web")
       if (Array.isArray(value)) {
         value.forEach((item) => {
           if (item !== undefined) {
-            acc.push(`${encodedKey}=${encode(item === null ? '' : item)}`);
+            acc.push(`${encodedKey}=${encode(item === null ? "" : item)}`);
           }
         });
       } else {
         // Handle null as empty string, or convert primitives to string
-        const formattedValue = value === null ? '' : value;
+        const formattedValue = value === null ? "" : value;
         acc.push(`${encodedKey}=${encode(formattedValue)}`);
       }
 
       return acc;
     }, [])
-    .join('&');
+    .join("&");
 }
 
 function buildWidgetUrl() {
