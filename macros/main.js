@@ -251,6 +251,13 @@ function parseMessage(raw) {
   return msg;
 }
 
+/** True for the supported version as a number (1) or numeric string ("1"). */
+function isSupportedVersion(value) {
+  if (typeof value === "string" && !value.trim()) return false;
+  if (typeof value !== "number" && typeof value !== "string") return false;
+  return Number(value) === MESSAGE_VERSION;
+}
+
 /** A destination is a SIP URI, E.164-ish number or https meeting link. */
 function isValidDestination(value) {
   if (typeof value !== "string") return false;
@@ -278,7 +285,8 @@ async function handleJoinMessage(raw) {
   const msg = parseMessage(raw);
   if (!msg) return "ignored";
 
-  if (msg.v !== MESSAGE_VERSION) {
+  // The backend may relay `v` as a string ("1") rather than a number.
+  if (!isSupportedVersion(msg.v)) {
     await alertUser("Join failed", "Unsupported request. Please scan again.");
     return "bad-version";
   }

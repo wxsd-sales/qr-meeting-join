@@ -162,6 +162,23 @@ describe("macros/main.js", () => {
     expect(xapi.Command.Dial).not.toHaveBeenCalled();
   });
 
+  it("accepts the version as a number or a numeric string", async () => {
+    for (const v of [1, "1", " 1 ", 1.0]) {
+      const token = macro.mintToken();
+      expect(await macro.handleJoinMessage(msg(token, { v }))).toBe("joined");
+    }
+  });
+
+  it("rejects other, missing or non-numeric versions", async () => {
+    for (const v of [2, "2", "", "abc", null, undefined, true, [1]]) {
+      const token = macro.mintToken();
+      expect(await macro.handleJoinMessage(msg(token, { v }))).toBe(
+        "bad-version",
+      );
+    }
+    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+  });
+
   it("validates destinations", () => {
     expect(macro.isValidDestination("https://x.webex.com/meet/a")).toBe(true);
     expect(macro.isValidDestination("123456789@zoomcrc.com")).toBe(true);
