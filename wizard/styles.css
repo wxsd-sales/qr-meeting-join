@@ -701,3 +701,53 @@ h2 {
 .section-gap {
   margin-top: 2rem;
 }
+
+.payload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.payload > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.payload > div[hidden] {
+  display: none;
+}
+
+/* JSON syntax colours (GitHub-style palettes for light and dark). */
+.json {
+  --j-key: #0550ae;
+  --j-string: #0a3069;
+  --j-number: #0550ae;
+  --j-punct: #6e7781;
+}
+
+.json .j-k {
+  color: var(--j-key);
+}
+.json .j-s {
+  color: #116329;
+}
+.json .j-n {
+  color: #953800;
+}
+.json .j-p {
+  color: var(--j-punct);
+}
+
+:root.mds-theme-stable-darkWebex .json {
+  --j-key: #79c0ff;
+  --j-punct: #8b949e;
+}
+:root.mds-theme-stable-darkWebex .json .j-s {
+  color: #a5d6ff;
+}
+:root.mds-theme-stable-darkWebex .json .j-n {
+  color: #ffa657;
+}

@@ -193,9 +193,9 @@ async function join(meeting) {
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      // text/plain avoids a CORS preflight - webhook ingresses often cannot
-      // answer OPTIONS requests. The body is still JSON.
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      // Cross-origin application/json triggers a CORS preflight (OPTIONS), so
+      // the join endpoint must answer it with the right CORS headers.
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         buildJoinPayload({ scan: state.scan, meeting, user: state.user }),
       ),

@@ -215,11 +215,40 @@
                 <span class="field__hint"
                   >Webhook URL of your Webex Connect flow, AWS Lambda function
                   URL or any backend. The phone web app POSTs the device ID,
-                  one-time token and chosen meeting here (unauthenticated for
-                  now). It is carried in the QR code, so the hosted or a
-                  self-hosted copy of the web app can use it. See
-                  <code>docs/backend-contract.md</code>.</span
+                  one-time token and chosen meeting here. It is carried in the
+                  QR code, so the hosted or a self-hosted copy of the web app
+                  can use it. See <code>docs/backend-contract.md</code>.</span
                 >
+                <div class="payload">
+                  <button
+                    id="payload-toggle"
+                    type="button"
+                    class="secondary-button payload__toggle"
+                    aria-expanded="false"
+                    aria-controls="payload-example"
+                  >
+                    Show expected join payload
+                  </button>
+                  <div id="payload-example" hidden>
+                    <span class="field__hint"
+                      >POST body, sent as
+                      <code>Content-Type: application/json</code>:</span
+                    >
+                    <pre
+                      class="code-output__command json"
+                    ><code><span class="j-p">{</span>
+  <span class="j-k">"v"</span><span class="j-p">:</span> <span class="j-n">1</span><span class="j-p">,</span>
+  <span class="j-k">"deviceId"</span><span class="j-p">:</span> <span class="j-s">"Y2lzY29zcGFyazovL…"</span><span class="j-p">,</span>
+  <span class="j-k">"token"</span><span class="j-p">:</span> <span class="j-s">"3f9c…32 hex chars…"</span><span class="j-p">,</span>
+  <span class="j-k">"destination"</span><span class="j-p">:</span> <span class="j-s">"123456789@zoomcrc.com"</span><span class="j-p">,</span>
+  <span class="j-k">"meetingType"</span><span class="j-p">:</span> <span class="j-s">"zoom"</span><span class="j-p">,</span>
+  <span class="j-k">"title"</span><span class="j-p">:</span> <span class="j-s">"Weekly sync"</span><span class="j-p">,</span>
+  <span class="j-k">"user"</span><span class="j-p">:</span> <span class="j-s">"Alex Doe"</span><span class="j-p">,</span>
+  <span class="j-k">"hostPin"</span><span class="j-p">:</span> <span class="j-s">"123456"</span><span class="j-p">,</span>
+  <span class="j-k">"guestPin"</span><span class="j-p">:</span> <span class="j-s">"7890"</span>
+<span class="j-p">}</span></code></pre>
+                  </div>
+                </div>
               </div>
               <div class="field">
                 <label class="field__label" for="widget-title"

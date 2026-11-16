@@ -18,10 +18,10 @@ backend. It must be `https` (or `http://localhost` for development). For now
 the request is **unauthenticated**; the web app never sends the user's Webex
 access token.
 
-The web app sends `Content-Type: text/plain;charset=UTF-8` with a JSON body.
-This is deliberate: it is a CORS "simple request", so no preflight `OPTIONS` is
-needed, which Webex Connect inbound webhooks cannot answer. Parse the body as
-JSON regardless of content type.
+The web app sends `Content-Type: application/json` with a JSON body. Because
+the web app is served from a different origin, browsers send a CORS preflight
+`OPTIONS` request first, so the endpoint must answer it (and the `POST`) with
+`Access-Control-Allow-Origin` and `Access-Control-Allow-Headers: Content-Type`.
 
 ```json
 {

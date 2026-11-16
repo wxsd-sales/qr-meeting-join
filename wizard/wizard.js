@@ -103,6 +103,15 @@ const MACRO_SOURCE_URL = "../macros/main.js";
   );
   updatePreview();
 
+  $("payload-toggle")?.addEventListener("click", () => {
+    const toggle = $("payload-toggle");
+    const panel = $("payload-example");
+    const show = panel.hidden;
+    panel.hidden = !show;
+    toggle.setAttribute("aria-expanded", String(show));
+    toggle.textContent = show ? "Hide payload" : "Show expected join payload";
+  });
+
   $("copy-button")?.addEventListener("click", async () => {
     const button = $("copy-button");
     try {
