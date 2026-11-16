@@ -2,6 +2,7 @@ import { describe, expect, test } from "@jest/globals";
 import {
   applyMeetingInfo,
   buildJoinPayload,
+  MEETING_LOGOS,
   meetingInfoRequest,
   normalizeCalendarEvent,
   personalRoomToMeeting,
@@ -393,5 +394,16 @@ describe("scanFromQrText", () => {
     ).toBeNull();
     expect(scanFromQrText("hello", page)).toBeNull();
     expect(scanFromQrText(`${page}#nothing=here`, page)).toBeNull();
+  });
+});
+
+describe("meeting logos", () => {
+  test("every meeting kind has a Momentum brand visual from the CDN", () => {
+    for (const kind of ["webex", "zoom", "teams", "google"]) {
+      expect(MEETING_LOGOS[kind].src).toMatch(
+        /^https:\/\/cdn\.jsdelivr\.net\/npm\/@momentum-design\/brand-visuals@[\d.]+\/dist\/svg\/.+\.svg$/,
+      );
+      expect(MEETING_LOGOS[kind].label).toBeTruthy();
+    }
   });
 });

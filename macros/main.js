@@ -47,7 +47,6 @@ const MESSAGE_TYPE = "qr-join";
 const MESSAGE_VERSION = 1;
 const MAX_DESTINATION_LENGTH = 512;
 const PIN_DIGITS = /^[0-9*#]{1,32}$/;
-const DTMF_DELAY_MS = 6000;
 const MEETING_TYPES = ["webex", "zoom", "teams", "google"];
 
 /** token -> { issuedAt, displayUntil, validUntil } (epoch ms) */
@@ -323,12 +322,16 @@ async function handleJoinMessage(raw) {
   saveWidget().catch(() => {});
 
   const who = typeof msg.user === "string" ? msg.user.slice(0, 64) : "";
-  const { command, args } = joinCommand(msg);
+  const { command, args, name: commandName, type } = joinCommand(msg);
+  debugLog(`${commandName}`, { ...args, Pin: args.Pin ? "…" : undefined });
   try {
     await command(args);
   } catch (error) {
-    console.error(`${MACRO_NAME}: join failed`, error);
-    await alertUser("Join failed", "The device could not join that meeting.");
+    console.error(`${MACRO_NAME}: ${commandName} failed`, error);
+    await alertUser(
+      "Join failed",
+      `The device could not join that ${type} meeting. Check that ${type} calling is enabled on this device.`,
+    );
     return "join-failed";
   }
 
@@ -337,44 +340,95 @@ async function handleJoinMessage(raw) {
     msg.title ? `${msg.title}${who ? ` - ${who}` : ""}` : who || "Connecting…",
     5,
   );
-  sendPins(msg);
   return "joined";
 }
 
+/** A PIN/password the join commands can take (digits, * and #). */
+function cleanPin(value) {
+  return typeof value === "string" && PIN_DIGITS.test(value) ? value : "";
+}
+
 /**
- * Pick the xAPI command for a meeting type. Webex meeting links use
- * `Webex Join`; everything else (SIP/H.323 addresses such as Zoom's
- * `<id>@zoomcrc.com`, Teams and Google Meet links) goes through `Dial`.
+ * Pick the xCommand for the meeting type and map the request onto its
+ * parameters. A host PIN joins as the host; otherwise the user joins as a
+ * guest (with the meeting/video password, if one was sent).
+ *
+ *   webex  -> Webex Join            Number, DisplayName, ParticipantRole, Pin
+ *   zoom   -> Zoom Join             MeetingID, MeetingPasscode, HostKey, Domain
+ *   teams  -> MicrosoftTeams Join   Url, Passcode, Title
+ *   google -> Dial                  RoomOS has no Google Meet join command, so
+ *                                   the meeting link is dialled (best effort)
+ *
+ * Each of these needs the matching calling service enabled on the device.
  */
 function joinCommand(msg) {
   const destination = msg.destination.trim();
   const type = MEETING_TYPES.includes(msg.meetingType)
     ? msg.meetingType
     : "webex";
-  if (type === "webex" && /^https:\/\//i.test(destination)) {
+  const hostPin = cleanPin(msg.hostPin);
+  const guestPin = cleanPin(msg.guestPin);
+  const name =
+    typeof msg.user === "string" ? msg.user.trim().slice(0, 255) : "";
+  const title =
+    typeof msg.title === "string" ? msg.title.trim().slice(0, 255) : "";
+
+  if (type === "zoom") {
+    const match = destination.match(/^(\d{6,15})(?:@([^\s@]+))?$/);
+    const args = match
+      ? { MeetingID: match[1] }
+      : { MeetingID: destination.replace(/^.*\/j\//, "").split("?")[0] };
+    // zoomcrc.com is the default domain; only pass a different one (zoomgov...).
+    if (match?.[2] && match[2].toLowerCase() !== "zoomcrc.com") {
+      args.Domain = match[2];
+    }
+    if (hostPin) args.HostKey = hostPin;
+    if (guestPin) args.MeetingPasscode = guestPin;
     return {
-      command: (args) => xapi.Command.Webex.Join(args),
-      args: { Number: destination },
+      type,
+      name: "Zoom Join",
+      command: (a) => xapi.Command.Zoom.Join(a),
+      args,
     };
   }
-  return {
-    command: (args) => xapi.Command.Dial(args),
-    args: { Number: destination },
-  };
-}
 
-/** Host/guest PINs are sent as DTMF once the far end has had time to answer. */
-function sendPins(msg) {
-  const pin = [msg.hostPin, msg.guestPin].find(
-    (p) => typeof p === "string" && PIN_DIGITS.test(p),
-  );
-  if (!pin) return;
-  const digits = /[#]$/.test(pin) ? pin : `${pin}#`;
-  setTimeout(() => {
-    xapi.Command.Call.DTMFSend({ DTMFString: digits }).catch((error) =>
-      console.error(`${MACRO_NAME}: DTMF failed`, error),
-    );
-  }, DTMF_DELAY_MS);
+  if (type === "teams") {
+    const args = { Url: destination };
+    if (title) args.Title = title;
+    if (guestPin) args.Passcode = guestPin;
+    return {
+      type,
+      name: "MicrosoftTeams Join",
+      command: (a) => xapi.Command.MicrosoftTeams.Join(a),
+      args,
+    };
+  }
+
+  if (type === "google") {
+    const args = { Number: destination };
+    if (name) args.DisplayName = name;
+    return {
+      type,
+      name: "Dial",
+      command: (a) => xapi.Command.Dial(a),
+      args,
+    };
+  }
+
+  const args = { Number: destination, ParticipantRole: "Guest" };
+  if (name) args.DisplayName = name;
+  if (hostPin) {
+    args.ParticipantRole = "Host";
+    args.Pin = hostPin;
+  } else if (guestPin) {
+    args.Pin = guestPin;
+  }
+  return {
+    type: "webex",
+    name: "Webex Join",
+    command: (a) => xapi.Command.Webex.Join(a),
+    args,
+  };
 }
 
 /* ------------------------------------------------------------------ init */

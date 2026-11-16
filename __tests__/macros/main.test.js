@@ -82,37 +82,117 @@ describe("macros/main.js", () => {
     expect(await macro.handleJoinMessage('{"type":"other"}')).toBe("ignored");
   });
 
-  it("uses Webex Join for Webex links and Dial otherwise", async () => {
-    let token = macro.mintToken();
+  const joinWith = async (extra) => {
+    const token = macro.mintToken();
+    return macro.handleJoinMessage(msg(token, extra));
+  };
+
+  it("joins Webex meetings as a guest with Webex Join", async () => {
     expect(
-      await macro.handleJoinMessage(
-        msg(token, { destination: "https://acme.webex.com/meet/alex" }),
-      ),
+      await joinWith({
+        destination: "https://acme.webex.com/meet/alex",
+        user: "Alex",
+        guestPin: "88988737",
+      }),
     ).toBe("joined");
     expect(xapi.Command.Webex.Join).toHaveBeenCalledWith({
       Number: "https://acme.webex.com/meet/alex",
+      DisplayName: "Alex",
+      ParticipantRole: "Guest",
+      Pin: "88988737",
     });
+  });
 
-    token = macro.mintToken();
-    await macro.handleJoinMessage(
-      msg(token, {
+  it("joins as the host with the host PIN", async () => {
+    await joinWith({
+      destination: "asdf@coe-sbx.webex.com",
+      hostPin: "5484",
+      guestPin: "1111",
+    });
+    expect(xapi.Command.Webex.Join).toHaveBeenCalledWith({
+      Number: "asdf@coe-sbx.webex.com",
+      DisplayName: "Alex",
+      ParticipantRole: "Host",
+      Pin: "5484",
+    });
+  });
+
+  it("joins Zoom with Zoom Join, not Dial or DTMF", async () => {
+    await joinWith({
+      meetingType: "zoom",
+      destination: "12345678901@zoomcrc.com",
+      guestPin: "246810",
+      hostPin: "654321",
+    });
+    expect(xapi.Command.Zoom.Join).toHaveBeenCalledWith({
+      MeetingID: "12345678901",
+      MeetingPasscode: "246810",
+      HostKey: "654321",
+    });
+    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+    expect(xapi.Command.Call.DTMFSend).not.toHaveBeenCalled();
+  });
+
+  it("passes a non-default Zoom domain", async () => {
+    await joinWith({
+      meetingType: "zoom",
+      destination: "12345678901@zoomgov.com",
+    });
+    expect(xapi.Command.Zoom.Join).toHaveBeenCalledWith({
+      MeetingID: "12345678901",
+      Domain: "zoomgov.com",
+    });
+  });
+
+  it("joins Microsoft Teams with MicrosoftTeams Join", async () => {
+    await joinWith({
+      meetingType: "teams",
+      destination: "https://teams.microsoft.com/l/meetup-join/abc",
+      title: "Planning",
+      guestPin: "123456",
+    });
+    expect(xapi.Command.MicrosoftTeams.Join).toHaveBeenCalledWith({
+      Url: "https://teams.microsoft.com/l/meetup-join/abc",
+      Title: "Planning",
+      Passcode: "123456",
+    });
+    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+  });
+
+  it("dials Google Meet links (RoomOS has no Meet join command)", async () => {
+    await joinWith({
+      meetingType: "google",
+      destination: "https://meet.google.com/abc-defg-hij",
+    });
+    expect(xapi.Command.Dial).toHaveBeenCalledWith({
+      Number: "https://meet.google.com/abc-defg-hij",
+      DisplayName: "Alex",
+    });
+  });
+
+  it("alerts when the calling service is not available", async () => {
+    xapi.Command.Zoom.Join.mockRejectedValueOnce(new Error("not enabled"));
+    expect(
+      await joinWith({
         meetingType: "zoom",
         destination: "12345678901@zoomcrc.com",
       }),
-    );
-    expect(xapi.Command.Dial).toHaveBeenCalledWith({
-      Number: "12345678901@zoomcrc.com",
-    });
+    ).toBe("join-failed");
+    expect(
+      xapi.Command.UserInterface.Message.Alert.Display,
+    ).toHaveBeenCalledWith(expect.objectContaining({ Title: "Join failed" }));
   });
 
   it("joins once for a valid token and rejects replays", async () => {
     const token = macro.mintToken();
     expect(await macro.handleJoinMessage(msg(token))).toBe("joined");
-    expect(xapi.Command.Dial).toHaveBeenCalledWith({
+    expect(xapi.Command.Webex.Join).toHaveBeenCalledWith({
       Number: "meet@example.webex.com",
+      DisplayName: "Alex",
+      ParticipantRole: "Guest",
     });
     expect(await macro.handleJoinMessage(msg(token))).toBe("token-unknown");
-    expect(xapi.Command.Dial).toHaveBeenCalledTimes(1);
+    expect(xapi.Command.Webex.Join).toHaveBeenCalledTimes(1);
     expect(xapi.Command.UserInterface.Message.Alert.Display).toHaveBeenCalled();
   });
 
@@ -121,12 +201,12 @@ describe("macros/main.js", () => {
     xapi.Event.Message.Send.emit({ Text: msg(token) });
     await tick();
     await tick();
-    expect(xapi.Command.Dial).toHaveBeenCalledTimes(1);
+    expect(xapi.Command.Webex.Join).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unknown tokens with an on-device alert", async () => {
     expect(await macro.handleJoinMessage(msg("nope"))).toBe("token-unknown");
-    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+    expect(xapi.Command.Webex.Join).not.toHaveBeenCalled();
     expect(
       xapi.Command.UserInterface.Message.Alert.Display,
     ).toHaveBeenCalledWith(
@@ -146,7 +226,7 @@ describe("macros/main.js", () => {
     const token = macro.mintToken();
     xapi.Status.SystemUnit.State.NumberOfActiveCalls.set(1);
     expect(await macro.handleJoinMessage(msg(token))).toBe("busy");
-    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+    expect(xapi.Command.Webex.Join).not.toHaveBeenCalled();
     // The token is not burned, so the user may retry after the call ends.
     expect(macro.checkToken(token)).toBe("ok");
   });
@@ -159,7 +239,7 @@ describe("macros/main.js", () => {
     expect(
       await macro.handleJoinMessage(msg(token, { destination: "a b\nc" })),
     ).toBe("bad-destination");
-    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+    expect(xapi.Command.Webex.Join).not.toHaveBeenCalled();
   });
 
   it("accepts the version as a number or a numeric string", async () => {
@@ -176,7 +256,7 @@ describe("macros/main.js", () => {
         "bad-version",
       );
     }
-    expect(xapi.Command.Dial).not.toHaveBeenCalled();
+    expect(xapi.Command.Webex.Join).not.toHaveBeenCalled();
   });
 
   it("validates destinations", () => {

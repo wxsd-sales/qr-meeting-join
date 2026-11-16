@@ -195,8 +195,8 @@ the web app, which sends the join request to the configured join endpoint.
 
 The backend behind the join endpoint makes a Cloud xAPI `Message.Send` request
 to the target device ID with the encoded join payload. The macro validates the
-token, device state and destination, then joins the meeting (`Webex Join` or
-`Dial`, plus any PIN as DTMF) - or shows an error on the screen, for example
+token, device state and destination, then joins the meeting (`Webex Join`, `Zoom Join` or
+`MicrosoftTeams Join`, with the PIN or passcode as a parameter) - or shows an error on the screen, for example
 when the QR code has expired.
 
 <picture>

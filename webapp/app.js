@@ -3,6 +3,7 @@ import {
   isEndpointAllowed,
   applyMeetingInfo,
   isScanExpired,
+  MEETING_LOGOS,
   meetingInfoRequest,
   scanFromQrText,
   normalizeCalendarEvent,
@@ -200,7 +201,7 @@ function meetingRow(meeting, expired) {
   meta.className = "meeting__meta";
   meta.textContent = [
     meeting.inProgress ? "In progress" : fmtTime(meeting.start),
-    meeting.kind,
+    MEETING_LOGOS[meeting.kind]?.label ?? meeting.kind,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -209,7 +210,18 @@ function meetingRow(meeting, expired) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "primary";
-  button.textContent = "Join";
+  const logo = MEETING_LOGOS[meeting.kind];
+  if (logo) {
+    const img = document.createElement("img");
+    img.className = "join__logo";
+    img.src = logo.src;
+    img.alt = "";
+    img.width = 20;
+    img.height = 20;
+    button.append(img);
+    button.setAttribute("aria-label", `Join ${logo.label} meeting`);
+  }
+  button.append(document.createTextNode("Join"));
   button.disabled = !state.scan || expired || state.sending;
   button.addEventListener("click", () => join(meeting));
 

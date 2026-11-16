@@ -281,3 +281,21 @@ button .icon {
   background: #000;
   object-fit: cover;
 }
+
+button.primary:has(.join__logo) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Brand logos are full-colour, so sit them on a light chip to stay legible on
+   the accent-coloured button in both themes. */
+.join__logo {
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  box-sizing: content-box;
+  border-radius: 6px;
+  background: #fff;
+  flex: none;
+}

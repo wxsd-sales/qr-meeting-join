@@ -7,7 +7,7 @@ command. This document is the contract between the web app, that middleware
 built separately.
 
 ```text
-phone web app ──POST──▶ middleware ──xCommand Message Send──▶ device macro ──▶ Dial
+phone web app ──POST──▶ middleware ──xCommand Message Send──▶ device macro ──▶ Webex/Zoom/Teams Join
 ```
 
 ## 1. Web app → middleware
@@ -48,8 +48,8 @@ the web app is served from a different origin, browsers send a CORS preflight
 | `meetingType` | no       | `webex` (default), `zoom`, `teams` or `google`; selects the join command.                              |
 | `title`       | no       | Meeting title, shown in the on-device confirmation.                                                    |
 | `user`        | no       | Display name of the signed-in user (informational only, not trusted).                                  |
-| `hostPin`     | no       | Sent as DTMF after dialling.                                                                           |
-| `guestPin`    | no       | Sent as DTMF after dialling (host PIN wins if both are present).                                       |
+| `hostPin`     | no       | Host PIN / Zoom host key; joins a Webex meeting as the host.                                           |
+| `guestPin`    | no       | Meeting password for guests (Webex, Zoom and Teams passcode).                                          |
 
 The five required fields (`type`, `v`, `deviceId`, `token`, `destination`) are
 exactly what the macro validates before acting, so the middleware must put all
@@ -103,10 +103,23 @@ not `qr-join`, then:
 3. rejects an invalid destination;
 4. rejects the request if a call is already active (the token is **not**
    consumed, so the user can retry after the call ends);
-5. consumes the token (single use), mints a fresh one, and joins - `Webex Join`
-   for `webex` meeting links, `Dial` for everything else (Zoom SIP, Teams and
-   Google Meet);
-6. shows _"Joining meeting"_ and, if a PIN was sent, sends it as DTMF.
+5. consumes the token (single use), mints a fresh one, and joins with the
+   xCommand for `meetingType` (the matching calling service must be enabled on
+   the device):
+
+   | `meetingType` | Command               | Parameters used                                                                              |
+   | ------------- | --------------------- | -------------------------------------------------------------------------------------------- |
+   | `webex`       | `Webex Join`          | `Number` (link or SIP address), `DisplayName`, `ParticipantRole`, `Pin`                      |
+   | `zoom`        | `Zoom Join`           | `MeetingID` (from `<id>@zoomcrc.com`), `MeetingPasscode` (`guestPin`), `HostKey` (`hostPin`) |
+   | `teams`       | `MicrosoftTeams Join` | `Url`, `Title`, `Passcode` (`guestPin`)                                                      |
+   | `google`      | `Dial`                | `Number` (the Meet link) - RoomOS has no Google Meet join command, so this is best effort    |
+
+   For Webex, a `hostPin` joins as `Host` with that PIN; otherwise the user
+   joins as a `Guest`, using `guestPin` as the meeting password if present.
+   PINs are passed as command parameters; nothing is sent as DTMF.
+
+6. shows _"Joining meeting"_, or _"Join failed"_ if the command is rejected
+   (for example the calling service is not enabled).
 
 ### Token lifetime
 

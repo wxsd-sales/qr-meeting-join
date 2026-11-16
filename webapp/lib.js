@@ -3,6 +3,19 @@
  */
 
 export const PAYLOAD_VERSION = 1;
+
+/** Momentum Design brand visuals (CDN), keyed by meeting kind. */
+const BRAND_CDN =
+  "https://cdn.jsdelivr.net/npm/@momentum-design/brand-visuals@0.41.0/dist/svg";
+export const MEETING_LOGOS = {
+  webex: {
+    label: "Webex",
+    src: `${BRAND_CDN}/webex-symbol-common-color-gradient.svg`,
+  },
+  zoom: { label: "Zoom", src: `${BRAND_CDN}/zoom-color.svg` },
+  teams: { label: "Microsoft Teams", src: `${BRAND_CDN}/ms-teams-color.svg` },
+  google: { label: "Google Meet", src: `${BRAND_CDN}/google-meet-color.svg` },
+};
 export const DEFAULT_MESSAGE_TYPE = "qr-join";
 
 /* ------------------------------------------------------------------- scan */
