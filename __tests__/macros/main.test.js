@@ -133,6 +133,26 @@ describe("macros/main.js", () => {
     expect(xapi.Command.Call.DTMFSend).not.toHaveBeenCalled();
   });
 
+  it("accepts alphanumeric guest passcodes but not unsafe ones", async () => {
+    await joinWith({
+      meetingType: "teams",
+      destination: "https://teams.microsoft.com/l/meetup-join/abc",
+      guestPin: "xYz123",
+    });
+    expect(xapi.Command.MicrosoftTeams.Join).toHaveBeenCalledWith(
+      expect.objectContaining({ Passcode: "xYz123" }),
+    );
+    await joinWith({
+      meetingType: "teams",
+      destination: "https://teams.microsoft.com/l/meetup-join/abc",
+      guestPin: "a b;rm -rf",
+    });
+    expect(xapi.Command.MicrosoftTeams.Join).toHaveBeenLastCalledWith({
+      Url: "https://teams.microsoft.com/l/meetup-join/abc",
+      Title: "Standup",
+    });
+  });
+
   it("passes a non-default Zoom domain", async () => {
     await joinWith({
       meetingType: "zoom",

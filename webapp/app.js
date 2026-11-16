@@ -19,7 +19,7 @@ import {
   savePendingScan,
   startLogin,
 } from "./oauth.js";
-import { getMeetingInfo, listCalendarEvents } from "./sdk.js";
+import { getEventNotes, getMeetingInfo, listCalendarEvents } from "./sdk.js";
 import { startScanner } from "./scanner.js";
 import { getMe, getPersonalRoom, listMeetings } from "./webex.js";
 
@@ -93,10 +93,14 @@ function renderDetails(details) {
     ["Meeting password", details.password],
     ["Join by video system", details.videoAddress],
     ["Meeting password for video system", details.videoPassword],
-    ["Join by phone", details.phones.map((p) => `${p.label} ${p.number}`)],
+    [
+      "Join by phone",
+      (details.phones ?? []).map((p) => `${p.label} ${p.number}`.trim()),
+    ],
     ["Access code", details.accessCode],
     ["Meeting password for audio", details.audioPassword],
     ["Host PIN", details.hostPin],
+    ["Details", details.notes],
   ].filter(([, v]) => (Array.isArray(v) ? v.length : v));
   const box = document.createElement("details");
   box.className = "meeting__details";
@@ -209,7 +213,7 @@ function meetingRow(meeting, expired) {
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "primary";
+  button.className = "primary join";
   const logo = MEETING_LOGOS[meeting.kind];
   if (logo) {
     const img = document.createElement("img");
@@ -321,6 +325,23 @@ async function fetchMeetings(accessToken) {
         : Promise.resolve(null);
     }),
   );
+  // Invitation bodies carry the Teams / Zoom / Meet details the calendar
+  // service parsed; fetch them for events that have one.
+  const notes = await Promise.allSettled(
+    calendar.map((event) => {
+      if (event.encryptedNotes || event.notes || event.hasAgenda === false) {
+        return Promise.resolve("");
+      }
+      return getEventNotes(accessToken, event);
+    }),
+  );
+  debugRecord(
+    "eventNotes",
+    notes.map((r, i) => ({
+      event: calendar[i]?.id,
+      result: r.status === "fulfilled" ? r.value : String(r.reason),
+    })),
+  );
   debugRecord(
     "meetingInfo",
     infos.map((r, i) => ({
@@ -333,6 +354,8 @@ async function fetchMeetings(accessToken) {
   const items = [
     ...calendar.map((event, i) => {
       const item = normalizeCalendarEvent(event);
+      const body = notes[i]?.status === "fulfilled" ? notes[i].value : "";
+      if (item && body && !item.agenda) item.agenda = body;
       const info = infos[i]?.status === "fulfilled" ? infos[i].value : null;
       return item && info ? applyMeetingInfo(item, info) : item;
     }),

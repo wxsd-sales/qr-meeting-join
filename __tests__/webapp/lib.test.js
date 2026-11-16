@@ -11,6 +11,7 @@ import {
   isEndpointAllowed,
   isScanExpired,
   normalizeEndpoint,
+  parseInviteText,
   parseScan,
   scanFromQrText,
   toJoinableMeetings,
@@ -405,5 +406,63 @@ describe("meeting logos", () => {
       );
       expect(MEETING_LOGOS[kind].label).toBeTruthy();
     }
+  });
+});
+
+describe("meeting information for non-Webex invites", () => {
+  const teamsBody = `<p>Microsoft Teams meeting</p>
+<p>Meeting ID: 261 553 128 004<br>Passcode: xYz123</p>
+<p>+1 323-849-4874,,123456789#   United States, Los Angeles</p>
+<p>Video Conference ID: 112 345 678 9</p>`;
+
+  test("parses id, passcode, video id and phone numbers", () => {
+    expect(parseInviteText(teamsBody)).toEqual({
+      meetingId: "261 553 128 004",
+      passcode: "xYz123",
+      videoId: "112 345 678 9",
+      phones: [
+        {
+          label: "United States, Los Angeles",
+          number: "+1 323-849-4874,,123456789#",
+        },
+      ],
+    });
+  });
+
+  test("a Teams event shows its meeting information and passcode", () => {
+    const item = normalizeCalendarEvent({
+      id: "t",
+      encryptedSubject: "Teams sync",
+      start: "2099-01-01T10:00:00.000Z",
+      durationMinutes: 30,
+      encryptedNotes: teamsBody,
+      meetingJoinInfo: {
+        meetingJoinURL:
+          "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc",
+      },
+    });
+    const [meeting] = toJoinableMeetings([item], 0);
+    expect(meeting.kind).toBe("teams");
+    expect(meeting.guestPin).toBe("xYz123");
+    expect(meeting.details).toMatchObject({
+      link: "https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc",
+      number: "261 553 128 004",
+      password: "xYz123",
+      videoAddress: "Video conference ID 112 345 678 9",
+    });
+    expect(meeting.details.notes).toContain("Microsoft Teams meeting");
+  });
+
+  test("a Zoom event is shown with its SIP address", () => {
+    const item = normalizeCalendarEvent({
+      id: "z",
+      encryptedSubject: "Zoom call",
+      start: "2099-01-01T10:00:00.000Z",
+      durationMinutes: 30,
+      encryptedLocation: "https://acme.zoom.us/j/12345678901?pwd=abc",
+    });
+    const [meeting] = toJoinableMeetings([item], 0);
+    expect(meeting.details.videoAddress).toBe("12345678901@zoomcrc.com");
+    expect(meeting.details.link).toContain("zoom.us/j/12345678901");
   });
 });

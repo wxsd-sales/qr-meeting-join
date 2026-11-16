@@ -47,6 +47,7 @@ const MESSAGE_TYPE = "qr-join";
 const MESSAGE_VERSION = 1;
 const MAX_DESTINATION_LENGTH = 512;
 const PIN_DIGITS = /^[0-9*#]{1,32}$/;
+const PASSCODE = /^[A-Za-z0-9*#@._!-]{1,32}$/;
 const MEETING_TYPES = ["webex", "zoom", "teams", "google"];
 
 /** token -> { issuedAt, displayUntil, validUntil } (epoch ms) */
@@ -343,9 +344,14 @@ async function handleJoinMessage(raw) {
   return "joined";
 }
 
-/** A PIN/password the join commands can take (digits, * and #). */
+/** A host PIN / host key: digits, * and #. */
 function cleanPin(value) {
   return typeof value === "string" && PIN_DIGITS.test(value) ? value : "";
+}
+
+/** A guest meeting password or passcode; Teams and Zoom ones are alphanumeric. */
+function cleanPasscode(value) {
+  return typeof value === "string" && PASSCODE.test(value) ? value : "";
 }
 
 /**
@@ -367,7 +373,7 @@ function joinCommand(msg) {
     ? msg.meetingType
     : "webex";
   const hostPin = cleanPin(msg.hostPin);
-  const guestPin = cleanPin(msg.guestPin);
+  const guestPin = cleanPasscode(msg.guestPin);
   const name =
     typeof msg.user === "string" ? msg.user.trim().slice(0, 255) : "";
   const title =

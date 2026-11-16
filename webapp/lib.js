@@ -304,7 +304,88 @@ export function personalRoomToMeeting(room) {
   };
 }
 
+/** Reduce HTML (calendar notes are often HTML) to readable plain text. */
+export function htmlToText(value) {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/<\s*(br|\/p|\/div|\/tr|\/li|\/h\d)\b[^>]*>/gi, "\n")
+    .replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
+/**
+ * Pull the joining details out of an invitation body. Teams, Zoom and Google
+ * invites written by the calendar service follow common patterns:
+ *   Meeting ID: 123 456 789 0   Passcode: AbC123
+ *   +1 323-849-4874,,123456789#  United States, Los Angeles
+ */
+export function parseInviteText(text) {
+  const t = htmlToText(text);
+  const id = t.match(/Meeting ID:?\s*((?:\d[\d ]{5,18}\d))/i)?.[1] ?? "";
+  const passcode =
+    t.match(/Pass(?:code|word):?\s*([A-Za-z0-9]{3,32})\b/i)?.[1] ?? "";
+  const video =
+    t.match(/(?:Video|VTC) Conference ID:?\s*((?:\d[\d ]{5,22}\d))/i)?.[1] ??
+    "";
+  const phones = [];
+  const re = /(\+\d[\d\s().-]{6,18}\d)((?:,,|,)\d+#?)?[ \t]*([^\n]*)/g;
+  for (const m of t.matchAll(re)) {
+    if (phones.length >= 4) break;
+    phones.push({
+      label: m[3].trim().slice(0, 48),
+      number: `${m[1].trim()}${m[2] ?? ""}`,
+    });
+  }
+  return { meetingId: id.trim(), passcode, videoId: video.trim(), phones };
+}
+
+/** Details for a meeting that has no Webex meetingInfo response. */
+export function detailsFromItem(item, target) {
+  const body = [item.location, item.agenda].filter(Boolean).join("\n");
+  const parsed = parseInviteText(body);
+  const link =
+    [item.webLink, target.destination].find((v) => /^https:\/\//i.test(v)) ||
+    (body.match(URL_RE) ?? []).find((u) => classifyLink(u)) ||
+    "";
+  const notes = htmlToText(item.agenda).slice(0, 1500);
+  return {
+    link,
+    number: parsed.meetingId,
+    password: parsed.passcode,
+    videoAddress:
+      target.kind === "zoom"
+        ? target.destination
+        : parsed.videoId
+          ? `Video conference ID ${parsed.videoId}`
+          : target.kind === "webex"
+            ? target.destination
+            : "",
+    videoPassword: "",
+    phones: parsed.phones,
+    accessCode: "",
+    audioPassword: "",
+    hostPin: "",
+    notes,
+  };
+}
+
 /** Normalise raw API items into joinable, de-duplicated, time-sorted entries. */
+/** A guest passcode taken from the parsed invitation, if usable. */
+function guestPinFrom(details) {
+  return /^[A-Za-z0-9]{3,32}$/.test(details?.password ?? "")
+    ? details.password
+    : "";
+}
+
 export function toJoinableMeetings(items, now = Date.now()) {
   const seen = new Set();
   const out = [];
@@ -320,6 +401,12 @@ export function toJoinableMeetings(items, now = Date.now()) {
     if (seen.has(key) || seen.has(same)) continue;
     seen.add(key);
     seen.add(same);
+    const details = item.details
+      ? {
+          ...item.details,
+          notes: item.details.notes ?? htmlToText(item.agenda).slice(0, 1500),
+        }
+      : detailsFromItem(item, target);
     out.push({
       id: key,
       title: item.title || "Meeting",
@@ -335,8 +422,8 @@ export function toJoinableMeetings(items, now = Date.now()) {
       hostPin:
         item.hostPin ||
         (item.hostKey && /^\d+$/.test(item.hostKey) ? item.hostKey : ""),
-      guestPin: item.guestPin || "",
-      details: item.details || null,
+      guestPin: item.guestPin || guestPinFrom(details),
+      details,
       kind: target.kind,
       destination: target.destination,
     });

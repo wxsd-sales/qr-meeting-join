@@ -86,3 +86,25 @@ export async function getMeetingInfo(accessToken, request) {
   });
   return response.body;
 }
+
+/**
+ * The invitation body (agenda/notes) of a calendar event, as plain text or
+ * HTML. The calendar service keeps it separate from the event list. The SDK
+ * normally decrypts it; if it arrives encrypted we decrypt it here.
+ */
+export async function getEventNotes(accessToken, event) {
+  const webex = await getWebex(accessToken);
+  const response = await webex.internal.calendar.getNotes(event.id);
+  const body = response?.body ?? response ?? {};
+  const raw = body.encryptedNotes ?? body.notes ?? "";
+  if (typeof raw !== "string" || !raw) return "";
+  const keyUrl = body.encryptionKeyUrl ?? event.encryptionKeyUrl;
+  if (keyUrl) {
+    try {
+      return await webex.internal.encryption.decryptText(keyUrl, raw);
+    } catch {
+      /* already plain text */
+    }
+  }
+  return raw;
+}

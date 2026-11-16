@@ -282,20 +282,35 @@ button .icon {
   object-fit: cover;
 }
 
-button.primary:has(.join__logo) {
+button.join {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-/* Brand logos are full-colour, so sit them on a light chip to stay legible on
-   the accent-coloured button in both themes. */
+/* Momentum "success" green (the same green as the Webex "Now" badge). */
+button.join {
+  background: var(
+    --mds-color-theme-common-touchbar-background-green-normal,
+    #1d805f
+  );
+  border-color: transparent;
+  color: #fff;
+}
+
+button.join:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+button.join:active:not(:disabled) {
+  background: var(
+    --mds-color-theme-common-touchbar-background-green-pressed,
+    #134231
+  );
+}
+
 .join__logo {
   width: 20px;
   height: 20px;
-  padding: 3px;
-  box-sizing: content-box;
-  border-radius: 6px;
-  background: #fff;
   flex: none;
 }
