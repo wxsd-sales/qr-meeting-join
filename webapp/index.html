@@ -35,7 +35,13 @@
       <section id="view-meetings" hidden>
         <h1 id="meetings-heading">Your meetings</h1>
         <p class="muted" id="meetings-hint"></p>
-        <ul class="meetings" id="meeting-list"></ul>
+
+        <h2 class="section-title">Personal Meeting Room</h2>
+        <ul class="meetings" id="pmr-list" aria-live="polite"></ul>
+
+        <h2 class="section-title">Meetings</h2>
+        <p class="muted section-sub">Starting in the next 24 hours</p>
+        <ul class="meetings" id="meeting-list" aria-live="polite"></ul>
         <button class="secondary" id="refresh" type="button">Refresh</button>
       </section>
 

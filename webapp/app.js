@@ -23,7 +23,14 @@ const appConfig = window.APP_CONFIG ?? {};
 const config = window.WEBAPP_CONFIG ?? {};
 const $ = (id) => document.getElementById(id);
 
-const state = { scan: null, user: "", meetings: [], sending: false };
+const state = {
+  scan: null,
+  user: "",
+  meetings: [],
+  pmr: null,
+  loading: { pmr: false, meetings: false },
+  sending: false,
+};
 
 // "#theme=light|dark" forces a theme (used for screenshots); otherwise the OS
 // preference applies. Read before the URL hash is consumed and cleaned.
@@ -101,7 +108,6 @@ function renderDetails(details) {
 function renderMeetings() {
   const expired = isScanExpired(state.scan);
   const list = $("meeting-list");
-  list.replaceChildren();
 
   if (!state.scan) {
     $("meetings-heading").textContent = "Your meetings";
@@ -120,43 +126,86 @@ function renderMeetings() {
         : "");
   }
 
-  if (!state.meetings.length) {
+  fillList(list, state.meetings, {
+    loading: state.loading.meetings,
+    skeletons: 2,
+    empty: "No joinable meetings found in the next 24 hours.",
+    expired,
+  });
+  fillList($("pmr-list"), state.pmr ? [state.pmr] : [], {
+    loading: state.loading.pmr,
+    skeletons: 1,
+    empty: "No Personal Meeting Room found for your account.",
+    expired,
+  });
+}
+
+/** Fill a list with meeting rows, skeleton placeholders or an empty note. */
+function fillList(list, meetings, { loading, skeletons, empty, expired }) {
+  list.replaceChildren();
+  list.setAttribute("aria-busy", String(loading));
+  if (loading) {
+    for (let i = 0; i < skeletons; i += 1) list.append(skeletonRow());
+    return;
+  }
+  if (!meetings.length) {
     const li = document.createElement("li");
     li.className = "empty";
-    li.textContent = "No joinable meetings found in the next 24 hours.";
+    li.textContent = empty;
     list.append(li);
     return;
   }
+  for (const meeting of meetings) list.append(meetingRow(meeting, expired));
+}
 
-  for (const meeting of state.meetings) {
-    const li = document.createElement("li");
-    li.className = "meeting";
-
-    const info = document.createElement("div");
-    const title = document.createElement("span");
-    title.className = "meeting__title";
-    title.textContent = meeting.title;
-    const meta = document.createElement("span");
-    meta.className = "meeting__meta";
-    meta.textContent = [
-      meeting.inProgress ? "In progress" : fmtTime(meeting.start),
-      meeting.kind,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    info.append(title, meta);
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "primary";
-    button.textContent = "Join";
-    button.disabled = !state.scan || expired || state.sending;
-    button.addEventListener("click", () => join(meeting));
-
-    if (meeting.details) info.append(renderDetails(meeting.details));
-    li.append(info, button);
-    list.append(li);
+/** Animated placeholder shown while meetings are loading. */
+function skeletonRow() {
+  const li = document.createElement("li");
+  li.className = "meeting skeleton";
+  li.setAttribute("aria-hidden", "true");
+  const info = document.createElement("div");
+  for (const cls of [
+    "skeleton__line skeleton__line--title",
+    "skeleton__line",
+  ]) {
+    const line = document.createElement("span");
+    line.className = cls;
+    info.append(line);
   }
+  const button = document.createElement("span");
+  button.className = "skeleton__button";
+  li.append(info, button);
+  return li;
+}
+
+function meetingRow(meeting, expired) {
+  const li = document.createElement("li");
+  li.className = "meeting";
+
+  const info = document.createElement("div");
+  const title = document.createElement("span");
+  title.className = "meeting__title";
+  title.textContent = meeting.title;
+  const meta = document.createElement("span");
+  meta.className = "meeting__meta";
+  meta.textContent = [
+    meeting.inProgress ? "In progress" : fmtTime(meeting.start),
+    meeting.kind,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  info.append(title, meta);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "primary";
+  button.textContent = "Join";
+  button.disabled = !state.scan || expired || state.sending;
+  button.addEventListener("click", () => join(meeting));
+
+  if (meeting.details) info.append(renderDetails(meeting.details));
+  li.append(info, button);
+  return li;
 }
 
 /* ----------------------------------------------------------------- flow */
@@ -206,13 +255,26 @@ function showDebug(data) {
  */
 async function fetchMeetings(accessToken) {
   const now = Date.now();
+  const roomRequest = getPersonalRoom(accessToken);
+  // The PMR is a single quick REST call: show it without waiting for the SDK.
+  roomRequest
+    .then((room) => {
+      state.pmr = personalRoomToMeeting(room);
+    })
+    .catch(() => {
+      state.pmr = null;
+    })
+    .finally(() => {
+      state.loading.pmr = false;
+      renderMeetings();
+    });
   const [events, rest, room] = await Promise.allSettled([
     listCalendarEvents(accessToken, {
       from: now - 15 * 60 * 1000,
       to: now + 24 * 3600 * 1000,
     }),
     listMeetings(accessToken),
-    getPersonalRoom(accessToken),
+    roomRequest,
   ]);
   const results = [events, rest, room];
   const unauthorized = results.find((r) => r.reason?.status === 401);
@@ -255,14 +317,18 @@ async function fetchMeetings(accessToken) {
     ...(rest.value ?? []),
   ].filter(Boolean);
   const meetings = toJoinableMeetings(items, now);
-  const pmr = room.status === "fulfilled" && personalRoomToMeeting(room.value);
-  return pmr ? [pmr, ...meetings] : meetings;
+  return meetings;
 }
 
 async function loadMeetings() {
   const credentials = getCredentials();
   if (!credentials) return signedOut();
   $("refresh").disabled = true;
+  state.meetings = [];
+  state.pmr = null;
+  state.loading = { pmr: true, meetings: true };
+  show("view-meetings");
+  renderMeetings();
   try {
     if (!state.user) {
       state.user = (await getMe(credentials.accessToken))?.displayName ?? "";
@@ -275,6 +341,7 @@ async function loadMeetings() {
       "error",
     );
   } catch (error) {
+    state.loading = { pmr: false, meetings: false };
     if (error?.status === 401) {
       clearCredentials();
       return signedOut("Your session expired. Please sign in again.");
@@ -284,12 +351,13 @@ async function loadMeetings() {
   } finally {
     $("refresh").disabled = false;
   }
-  show("view-meetings");
+  state.loading = { pmr: false, meetings: false };
   renderMeetings();
 }
 
 function signedOut(message = "") {
   state.meetings = [];
+  state.pmr = null;
   banner(message, message ? "error" : "");
   $("signin-heading").textContent = state.scan
     ? `Join on ${deviceLabel()}`
