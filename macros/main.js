@@ -96,9 +96,45 @@ function checkToken(token, now = Date.now()) {
 
 /* ------------------------------------------------------------------- URLs */
 
+function toQueryString(params) {
+  if (!params || typeof params !== 'object') {
+    return '';
+  }
+
+  return Object.keys(params)
+    .reduce((acc, key) => {
+      const value = params[key];
+
+      // Skip undefined values (matches standard query builder behavior)
+      if (value === undefined) {
+        return acc;
+      }
+
+      // Helper to encode keys and values, converting %20 to + to match URLSearchParams.toString()
+      const encode = (str) => encodeURIComponent(str).replace(/%20/g, '+');
+      const encodedKey = encode(key);
+
+      // Handle arrays (e.g., { tag: ['js', 'web'] } -> "tag=js&tag=web")
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (item !== undefined) {
+            acc.push(`${encodedKey}=${encode(item === null ? '' : item)}`);
+          }
+        });
+      } else {
+        // Handle null as empty string, or convert primitives to string
+        const formattedValue = value === null ? '' : value;
+        acc.push(`${encodedKey}=${encode(formattedValue)}`);
+      }
+
+      return acc;
+    }, [])
+    .join('&');
+}
+
 function buildWidgetUrl() {
   const entry = tokens.get(currentToken);
-  const params = new URLSearchParams({
+  const paramsString = toQueryString({
     app: WEBAPP_URL,
     e: JOIN_ENDPOINT,
     d: identity.deviceId,
@@ -109,7 +145,7 @@ function buildWidgetUrl() {
     title: WIDGET_TITLE,
     sub: WIDGET_SUBTITLE,
   });
-  return `${WIDGET_URL}#${params.toString()}`;
+  return `${WIDGET_URL}#${paramsString}`;
 }
 
 /* ------------------------------------------------------------ web widget */
