@@ -32,6 +32,7 @@ const TOKEN_REFRESH_SECONDS = 120;
 const TOKEN_GRACE_SECONDS = 120;
 const WIDGET_TITLE = "Join your meeting";
 const WIDGET_SUBTITLE = "Scan with your phone camera";
+const DEBUG = false;
 // CONFIG:end
 
 const WIDGET_NAME = "QR Meeting Join";
@@ -148,6 +149,30 @@ function buildWidgetUrl() {
   return `${WIDGET_URL}#${paramsString}`;
 }
 
+/**
+ * The URL the widget encodes in its QR code (same keys and order as
+ * widget/lib.js buildScanUrl). Only used for debug logging.
+ */
+function buildScanUrl() {
+  const entry = tokens.get(currentToken);
+  const values = {
+    d: identity.deviceId,
+    n: identity.deviceName,
+    t: currentToken,
+    x: String(Math.floor(entry.validUntil / 1000)),
+    e: JOIN_ENDPOINT,
+  };
+  // Like the widget, omit empty values.
+  for (const key of Object.keys(values)) {
+    if (!values[key]) delete values[key];
+  }
+  return `${WEBAPP_URL}#${toQueryString(values)}`;
+}
+
+function debugLog(...args) {
+  if (DEBUG) console.log(`${MACRO_NAME} [debug]:`, ...args);
+}
+
 /* ------------------------------------------------------------ web widget */
 
 /**
@@ -158,11 +183,16 @@ function buildWidgetUrl() {
 async function saveWidget() {
   const entry = tokens.get(currentToken);
   if (!entry || Date.now() > entry.displayUntil) mintToken();
+  const widgetUrl = buildWidgetUrl();
+  if (DEBUG) {
+    debugLog(`QR scan URL: ${buildScanUrl()}`);
+    debugLog(`widget URL: ${widgetUrl}`);
+  }
   try {
     await xapi.Command.UserInterface.Extensions.WebWidget.Save({
       Name: WIDGET_NAME,
       PanelId: MACRO_NAME,
-      URL: buildWidgetUrl(),
+      URL: widgetUrl,
     });
   } catch (error) {
     console.error(`${MACRO_NAME}: failed to save web widget`, error);

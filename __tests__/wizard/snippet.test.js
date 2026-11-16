@@ -24,6 +24,7 @@ describe("buildSnippet", () => {
         "const TOKEN_GRACE_SECONDS = 45;",
         'const WIDGET_TITLE = "Hi";',
         'const WIDGET_SUBTITLE = "Scan";',
+        "const DEBUG = false;",
         "// CONFIG:end",
       ].join("\n"),
     );

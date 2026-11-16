@@ -38,6 +38,7 @@ const MACRO_SOURCE_URL = "../macros/main.js";
     tokenGraceSeconds: $("grace-seconds"),
     widgetUrl: $("widget-url"),
     webappUrl: $("webapp-url"),
+    debug: $("debug"),
   };
 
   fields.widgetTitle.value = config.widgetTitle ?? "";
@@ -46,6 +47,7 @@ const MACRO_SOURCE_URL = "../macros/main.js";
   fields.tokenGraceSeconds.value = config.tokenGraceSeconds ?? 120;
   fields.widgetUrl.value = config.widgetUrl ?? "";
   fields.webappUrl.value = config.webappUrl ?? "";
+  fields.debug.checked = config.debug === true;
 
   const getValues = () => ({
     name: config.name ?? "",
@@ -56,6 +58,7 @@ const MACRO_SOURCE_URL = "../macros/main.js";
     tokenGraceSeconds: fields.tokenGraceSeconds.value,
     widgetUrl: fields.widgetUrl.value.trim(),
     webappUrl: fields.webappUrl.value.trim(),
+    debug: fields.debug.checked,
   });
 
   const setExportStatus = (message, kind = "") => {

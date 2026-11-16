@@ -136,19 +136,31 @@ export function normalizeCalendarEvent(event) {
       Date.parse(start) + Number(event.durationMinutes) * 60000,
     ).toISOString();
   }
-  const organizer = event.organizer ?? {};
+  // The SDK decrypts calendar fields in place, so the readable text is still
+  // under its encrypted* name (encryptedSubject, encryptedLocation, ...).
+  const text = (...values) => values.find((v) => typeof v === "string" && v);
+  const organizer = event.encryptedOrganizer ?? event.organizer ?? {};
+  const joinInfo = event.meetingJoinInfo ?? {};
   return {
     id: event.id,
-    title: event.subject ?? event.summary ?? event.title ?? "",
+    title:
+      text(event.subject, event.encryptedSubject, event.summary, event.title) ??
+      "",
     start,
     end,
     sipAddress: /@/.test(event.webexURI ?? "")
       ? event.webexURI.replace(/^sip:/i, "")
       : "",
-    webLink: event.webexURL || event.spaceMeetURL || "",
-    location: typeof event.location === "string" ? event.location : "",
-    agenda: typeof event.notes === "string" ? event.notes : "",
-    hostEmail: organizer.emailAddress ?? organizer.email ?? "",
+    webLink:
+      text(event.webexURL, joinInfo.meetingJoinURL, event.spaceMeetURL) ?? "",
+    location: text(event.location, event.encryptedLocation) ?? "",
+    agenda: text(event.notes, event.encryptedNotes) ?? "",
+    hostEmail:
+      text(
+        organizer.encryptedEmailAddress,
+        organizer.emailAddress,
+        organizer.email,
+      ) ?? "",
   };
 }
 

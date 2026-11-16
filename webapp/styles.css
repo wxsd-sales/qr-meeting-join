@@ -161,3 +161,15 @@ button:disabled {
   text-align: center;
   padding: 1.5rem 0;
 }
+
+#debug-panel {
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+#debug-panel pre {
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

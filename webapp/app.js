@@ -129,6 +129,34 @@ function renderMeetings() {
 
 /* ----------------------------------------------------------------- flow */
 
+/** Debug: add ?debug to the page URL (or run localStorage.setItem("qr-meeting-join_debug","1")). */
+function debugEnabled() {
+  try {
+    return (
+      new URLSearchParams(location.search).has("debug") ||
+      localStorage.getItem("qr-meeting-join_debug") === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Show the raw API data on the page too, since phones have no console. */
+function showDebug(data) {
+  let panel = $("debug-panel");
+  if (!panel) {
+    panel = document.createElement("details");
+    panel.id = "debug-panel";
+    panel.append(
+      document.createElement("summary"),
+      document.createElement("pre"),
+    );
+    panel.firstChild.textContent = "Debug: raw meeting data";
+    $("view-meetings").append(panel);
+  }
+  panel.querySelector("pre").textContent = JSON.stringify(data, null, 2);
+}
+
 /**
  * Gather meetings from every source: the SDK calendar (Webex and non-Webex),
  * the REST meetings API, and the user's Personal Meeting Room. A source that
@@ -151,6 +179,16 @@ async function fetchMeetings(accessToken) {
   for (const r of results) {
     if (r.status === "rejected")
       console.warn("Meeting source failed:", r.reason);
+  }
+
+  if (debugEnabled()) {
+    const raw = {
+      calendarEvents: events.value ?? String(events.reason),
+      restMeetings: rest.value ?? String(rest.reason),
+      personalRoom: room.value ?? String(room.reason),
+    };
+    console.log("[qr-meeting-join] raw meeting data", raw);
+    showDebug(raw);
   }
 
   const items = [

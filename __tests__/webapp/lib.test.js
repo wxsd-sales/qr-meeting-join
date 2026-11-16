@@ -228,6 +228,25 @@ describe("SDK calendar events", () => {
   });
 });
 
+describe("SDK in-place decrypted fields", () => {
+  test("reads the title and organizer from encrypted* properties", () => {
+    const item = normalizeCalendarEvent({
+      id: "e",
+      encryptedSubject: "Quarterly planning",
+      encryptedLocation: "https://meet.google.com/abc-defg-hij",
+      encryptedOrganizer: { encryptedEmailAddress: "pm@example.com" },
+      start: "2099-01-01T10:00:00.000Z",
+      end: "2099-01-01T11:00:00.000Z",
+    });
+    expect(item.title).toBe("Quarterly planning");
+    expect(item.hostEmail).toBe("pm@example.com");
+    expect(toJoinableMeetings([item], 0)[0]).toMatchObject({
+      title: "Quarterly planning",
+      kind: "google",
+    });
+  });
+});
+
 describe("personal meeting room", () => {
   const room = {
     topic: "Alex's room",

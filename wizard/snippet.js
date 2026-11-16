@@ -11,6 +11,7 @@ export const DEFAULTS = {
   tokenGraceSeconds: 120,
   widgetTitle: "Join your meeting",
   widgetSubtitle: "Scan with your phone camera",
+  debug: false,
 };
 
 function seconds(value, fallback) {
@@ -30,6 +31,7 @@ export function buildSnippet({
   tokenGraceSeconds = DEFAULTS.tokenGraceSeconds,
   widgetTitle = DEFAULTS.widgetTitle,
   widgetSubtitle = DEFAULTS.widgetSubtitle,
+  debug = DEFAULTS.debug,
 } = {}) {
   return [
     CONFIG_START,
@@ -41,6 +43,7 @@ export function buildSnippet({
     `const TOKEN_GRACE_SECONDS = ${seconds(tokenGraceSeconds, DEFAULTS.tokenGraceSeconds)};`,
     `const WIDGET_TITLE = ${JSON.stringify(widgetTitle)};`,
     `const WIDGET_SUBTITLE = ${JSON.stringify(widgetSubtitle)};`,
+    `const DEBUG = ${debug === true || debug === "true"};`,
     CONFIG_END,
   ].join("\n");
 }
