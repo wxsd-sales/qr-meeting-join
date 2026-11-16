@@ -25,6 +25,7 @@ describe("parseScan", () => {
       token: "tok",
       expiresAt: 2_000_000,
       endpoint: "https://hooks.example.com/j",
+      messageType: "qr-join",
     });
     expect(isScanExpired(scan, 1_999_000)).toBe(false);
     expect(isScanExpired(scan, 2_000_001)).toBe(true);
@@ -165,6 +166,7 @@ describe("buildJoinPayload", () => {
   };
   test("includes the contract fields", () => {
     expect(buildJoinPayload({ scan, meeting, user: "Alex" })).toEqual({
+      type: "qr-join",
       v: 1,
       deviceId: "d",
       token: "t",
@@ -344,5 +346,18 @@ describe("Webex meeting info", () => {
       user: "",
     });
     expect(payload.guestPin).toBe("88988737");
+  });
+});
+
+describe("message type", () => {
+  test("is read from the QR code and echoed in the join payload", () => {
+    const scan = parseScan("#d=dev&t=tok&m=custom-join");
+    expect(scan.messageType).toBe("custom-join");
+    const payload = buildJoinPayload({
+      scan,
+      meeting: { destination: "a@b.com", title: "T" },
+      user: "",
+    });
+    expect(payload.type).toBe("custom-join");
   });
 });

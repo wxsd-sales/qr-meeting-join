@@ -12,6 +12,8 @@ import xapi from "xapi";
  *   t = a short-lived, single-use token minted by this macro
  *   x = epoch seconds after which the token is no longer accepted
  *   e = the join endpoint (webhook / Lambda URL) the web app should POST to
+ *   m = the message type ("qr-join") the web app echoes back as `type`, so the
+ *       middleware can relay it in the Message Send text this macro filters on
  *
  * The user signs in to Webex on their phone, picks a meeting, and the web app
  * POSTs { deviceId, token, destination, ... } to that endpoint (unauthenticated
@@ -138,6 +140,7 @@ function buildWidgetUrl() {
   const paramsString = toQueryString({
     app: WEBAPP_URL,
     e: JOIN_ENDPOINT,
+    m: MESSAGE_TYPE,
     d: identity.deviceId,
     n: identity.deviceName,
     t: currentToken,
@@ -161,6 +164,7 @@ function buildScanUrl() {
     t: currentToken,
     x: String(Math.floor(entry.validUntil / 1000)),
     e: JOIN_ENDPOINT,
+    m: MESSAGE_TYPE,
   };
   // Like the widget, omit empty values.
   for (const key of Object.keys(values)) {

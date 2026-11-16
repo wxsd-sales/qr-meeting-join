@@ -3,6 +3,7 @@
  */
 
 export const PAYLOAD_VERSION = 1;
+export const DEFAULT_MESSAGE_TYPE = "qr-join";
 
 /* ------------------------------------------------------------------- scan */
 
@@ -54,6 +55,7 @@ export function parseScan(hash) {
     token,
     deviceName: p.get("n")?.trim() || "",
     endpoint: normalizeEndpoint(p.get("e")?.trim()),
+    messageType: p.get("m")?.trim() || DEFAULT_MESSAGE_TYPE,
     expiresAt: Number.isFinite(expires) && expires > 0 ? expires * 1000 : 0,
   };
 }
@@ -313,6 +315,7 @@ export function toJoinableMeetings(items, now = Date.now()) {
 /** Request body POSTed to the middleware. See docs/backend-contract.md. */
 export function buildJoinPayload({ scan, meeting, user, guestPin }) {
   const payload = {
+    type: scan.messageType || DEFAULT_MESSAGE_TYPE,
     v: PAYLOAD_VERSION,
     deviceId: scan.deviceId,
     token: scan.token,

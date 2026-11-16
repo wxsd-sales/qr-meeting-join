@@ -5,10 +5,10 @@
  *   #app=<webapp url>&d=<device id>&n=<name>&t=<token>&x=<accept-until>
  *    &s=<show-until>&e=<join endpoint>
  * and the widget renders a QR code that points at the phone web app with the
- * scan parameters (d, n, t, x, e) in *its* hash.
+ * scan parameters (d, n, t, x, e, m) in *its* hash.
  */
 
-export const SCAN_KEYS = ["d", "n", "t", "x", "e"];
+export const SCAN_KEYS = ["d", "n", "t", "x", "e", "m"];
 
 export function parseHash(hash = "") {
   const raw = hash.startsWith("#") ? hash.slice(1) : hash;
