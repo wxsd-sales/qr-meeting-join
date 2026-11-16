@@ -1,6 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
 import {
+  applyMeetingInfo,
   buildJoinPayload,
+  meetingInfoRequest,
   normalizeCalendarEvent,
   personalRoomToMeeting,
   classifyLink,
@@ -271,5 +273,76 @@ describe("personal meeting room", () => {
       user: "",
     });
     expect(payload.hostPin).toBe("123456");
+  });
+});
+
+describe("Webex meeting info", () => {
+  const event = {
+    id: "e",
+    encryptedSubject: "Testing QR Join",
+    start: "2099-01-01T14:30:00.000Z",
+    durationMinutes: 30,
+    webexURI: "10028677895@webex.com",
+    webexURL: "https://alpha.webex.com/alpha/j.php?MTID=abc",
+    meetingJoinInfo: {
+      meetingJoinType: "WEBEX",
+      meetingJoinURI: "10028677895@webex.com",
+      webexMeetingInfo: { siteName: "alpha.webex.com" },
+    },
+  };
+  const info = {
+    meetingJoinUrl: "https://alpha.webex.com/alpha/j.php?MTID=abc",
+    meetingNumber: "10028677895",
+    password: "pw",
+    sipUrl: "10028677895@alpha.webex.com",
+    video: {
+      videoAddress: "10028677895@webex.com",
+      videoPassword: "88988737",
+    },
+    audio: {
+      accessCode: "10028677895",
+      audioPassword: "88988737",
+      callInNumbers: [{ label: "US Toll", number: "+1-650-276-7305" }],
+    },
+  };
+
+  test("builds the meetingInfo request for the event's site", () => {
+    expect(meetingInfoRequest(event)).toEqual({
+      uri: "https://alpha.webex.com/wbxappapi/v1/meetingInfo",
+      body: {
+        supportHostKey: true,
+        supportCountryList: true,
+        sipUrl: "10028677895@webex.com",
+        disableWebRedirect: true,
+      },
+    });
+  });
+
+  test("never sends the token to a non-webex host", () => {
+    const bad = structuredClone(event);
+    bad.meetingJoinInfo.webexMeetingInfo.siteName = "evil.example.com";
+    expect(meetingInfoRequest(bad)).toBeNull();
+    expect(meetingInfoRequest({ id: "z" })).toBeNull();
+  });
+
+  test("details, dial address and video password come from the info", () => {
+    const [meeting] = toJoinableMeetings(
+      [applyMeetingInfo(normalizeCalendarEvent(event), info)],
+      0,
+    );
+    expect(meeting.destination).toBe("10028677895@alpha.webex.com");
+    expect(meeting.guestPin).toBe("88988737");
+    expect(meeting.details).toMatchObject({
+      number: "1002 867 7895",
+      password: "pw",
+      videoPassword: "88988737",
+      phones: [{ label: "US Toll", number: "+1-650-276-7305" }],
+    });
+    const payload = buildJoinPayload({
+      scan: { deviceId: "d", token: "t" },
+      meeting,
+      user: "",
+    });
+    expect(payload.guestPin).toBe("88988737");
   });
 });

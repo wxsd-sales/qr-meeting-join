@@ -1,7 +1,9 @@
 import {
   buildJoinPayload,
   isEndpointAllowed,
+  applyMeetingInfo,
   isScanExpired,
+  meetingInfoRequest,
   normalizeCalendarEvent,
   personalRoomToMeeting,
   toJoinableMeetings,
@@ -14,7 +16,7 @@ import {
   loadPendingScan,
   startLogin,
 } from "./oauth.js";
-import { listCalendarEvents } from "./sdk.js";
+import { getMeetingInfo, listCalendarEvents } from "./sdk.js";
 import { getMe, getPersonalRoom, listMeetings } from "./webex.js";
 
 const appConfig = window.APP_CONFIG ?? {};
@@ -65,6 +67,35 @@ function fmtTime(ms) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(ms));
+}
+
+/** Collapsible "Meeting information", like the Webex app's info panel. */
+function renderDetails(details) {
+  const rows = [
+    ["Meeting link", details.link],
+    ["Meeting number", details.number],
+    ["Meeting password", details.password],
+    ["Join by video system", details.videoAddress],
+    ["Meeting password for video system", details.videoPassword],
+    ["Join by phone", details.phones.map((p) => `${p.label} ${p.number}`)],
+    ["Access code", details.accessCode],
+    ["Meeting password for audio", details.audioPassword],
+    ["Host PIN", details.hostPin],
+  ].filter(([, v]) => (Array.isArray(v) ? v.length : v));
+  const box = document.createElement("details");
+  box.className = "meeting__details";
+  const summary = document.createElement("summary");
+  summary.textContent = "Meeting information";
+  const dl = document.createElement("dl");
+  for (const [label, value] of rows) {
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    dd.textContent = Array.isArray(value) ? value.join("\n") : value;
+    dl.append(dt, dd);
+  }
+  box.append(summary, dl);
+  return box;
 }
 
 function renderMeetings() {
@@ -122,6 +153,7 @@ function renderMeetings() {
     button.disabled = !state.scan || expired || state.sending;
     button.addEventListener("click", () => join(meeting));
 
+    if (meeting.details) info.append(renderDetails(meeting.details));
     li.append(info, button);
     list.append(li);
   }
@@ -139,6 +171,16 @@ function debugEnabled() {
   } catch {
     return false;
   }
+}
+
+const debugData = {};
+
+/** Log a debug value to the console and the on-page panel. */
+function debugRecord(key, value) {
+  if (!debugEnabled()) return;
+  debugData[key] = value;
+  console.log(`[qr-meeting-join] ${key}`, value);
+  showDebug(debugData);
 }
 
 /** Show the raw API data on the page too, since phones have no console. */
@@ -181,20 +223,37 @@ async function fetchMeetings(accessToken) {
       console.warn("Meeting source failed:", r.reason);
   }
 
-  if (debugEnabled()) {
-    const raw = {
-      calendarEvents: events.value ?? String(events.reason),
-      restMeetings: rest.value ?? String(rest.reason),
-      personalRoom: room.value ?? String(room.reason),
-    };
-    console.log("[qr-meeting-join] raw meeting data", raw);
-    showDebug(raw);
-  }
+  debugRecord("calendarEvents", events.value ?? String(events.reason));
+  debugRecord("restMeetings", rest.value ?? String(rest.reason));
+  debugRecord("personalRoom", room.value ?? String(room.reason));
+
+  // Webex meetings: fetch the full details (passwords, dial-in numbers).
+  const calendar = events.value ?? [];
+  const infos = await Promise.allSettled(
+    calendar.map((event) => {
+      const request = meetingInfoRequest(event);
+      return request
+        ? getMeetingInfo(accessToken, request)
+        : Promise.resolve(null);
+    }),
+  );
+  debugRecord(
+    "meetingInfo",
+    infos.map((r, i) => ({
+      event: calendar[i]?.id,
+      request: meetingInfoRequest(calendar[i]),
+      result: r.status === "fulfilled" ? r.value : String(r.reason),
+    })),
+  );
 
   const items = [
-    ...(events.value ?? []).map(normalizeCalendarEvent).filter(Boolean),
+    ...calendar.map((event, i) => {
+      const item = normalizeCalendarEvent(event);
+      const info = infos[i]?.status === "fulfilled" ? infos[i].value : null;
+      return item && info ? applyMeetingInfo(item, info) : item;
+    }),
     ...(rest.value ?? []),
-  ];
+  ].filter(Boolean);
   const meetings = toJoinableMeetings(items, now);
   const pmr = room.status === "fulfilled" && personalRoomToMeeting(room.value);
   return pmr ? [pmr, ...meetings] : meetings;
@@ -264,14 +323,22 @@ async function join(meeting) {
   state.sending = true;
   renderMeetings();
   try {
-    const response = await fetch(endpoint, {
+    const headers = { "Content-Type": "application/json" };
+    const body = JSON.stringify(
+      buildJoinPayload({ scan: state.scan, meeting, user: state.user }),
+    );
+    debugRecord("joinRequest", {
       method: "POST",
-      // Cross-origin application/json triggers a CORS preflight (OPTIONS), so
-      // the join endpoint must answer it with the right CORS headers.
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        buildJoinPayload({ scan: state.scan, meeting, user: state.user }),
-      ),
+      url: endpoint,
+      headers,
+      body: JSON.parse(body),
+    });
+    // Cross-origin application/json triggers a CORS preflight (OPTIONS), so
+    // the join endpoint must answer it with the right CORS headers.
+    const response = await fetch(endpoint, { method: "POST", headers, body });
+    debugRecord("joinResponse", {
+      status: response.status,
+      ok: response.ok,
     });
     if (!response.ok) throw new Error(`Server responded ${response.status}`);
     // Tokens are single use: drop it so a refresh cannot replay it.
@@ -282,6 +349,7 @@ async function join(meeting) {
     banner("");
     show("view-done");
   } catch (error) {
+    debugRecord("joinError", String(error));
     banner(`Could not send the request: ${error.message}`, "error");
   } finally {
     state.sending = false;

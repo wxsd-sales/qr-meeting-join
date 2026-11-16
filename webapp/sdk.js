@@ -71,3 +71,18 @@ export async function listCalendarEvents(accessToken, { from, to }) {
   });
   return Array.isArray(events) ? events : [];
 }
+
+/**
+ * Full details of a Webex meeting (password, video-system password, dial-in
+ * numbers) - the same request the Webex web app makes. `request` comes from
+ * meetingInfoRequest() in lib.js.
+ */
+export async function getMeetingInfo(accessToken, request) {
+  const webex = await getWebex(accessToken);
+  const response = await webex.request({
+    method: "POST",
+    uri: request.uri,
+    body: request.body,
+  });
+  return response.body;
+}

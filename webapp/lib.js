@@ -165,6 +165,73 @@ export function normalizeCalendarEvent(event) {
 }
 
 /**
+ * Where to ask for a Webex meeting's full details (password, video-system
+ * password, dial-in numbers). Only webex.com hosts are accepted so the access
+ * token is never sent anywhere else.
+ */
+export function meetingInfoRequest(event) {
+  const info = event?.meetingJoinInfo;
+  const site = info?.webexMeetingInfo?.siteName;
+  const sipUrl = event?.webexURI || info?.meetingJoinURI;
+  if (
+    info?.meetingJoinType !== "WEBEX" ||
+    typeof site !== "string" ||
+    !/^[a-z0-9-]+(\.[a-z0-9-]+)*\.webex\.com$/i.test(site) ||
+    !sipUrl
+  ) {
+    return null;
+  }
+  return {
+    uri: `https://${site}/wbxappapi/v1/meetingInfo`,
+    body: {
+      supportHostKey: true,
+      supportCountryList: true,
+      sipUrl: String(sipUrl).replace(/^sip:/i, ""),
+      disableWebRedirect: true,
+    },
+  };
+}
+
+/** Readable details of a meeting, as shown in the Webex app's info panel. */
+export function meetingInfoToDetails(info) {
+  if (!info || typeof info !== "object") return null;
+  const str = (v) => (v === undefined || v === null ? "" : String(v));
+  const spaced = (n) => str(n).replace(/^(\d{4})(\d{3})(\d+)$/, "$1 $2 $3");
+  const details = {
+    link: str(info.meetingJoinUrl || info.meetingLink),
+    number: spaced(info.meetingNumber),
+    password: str(info.password),
+    videoAddress: str(info.video?.videoAddress || info.sipUrl),
+    videoPassword: str(info.video?.videoPassword),
+    phones: (info.audio?.callInNumbers ?? [])
+      .filter((p) => p?.number)
+      .map((p) => ({ label: str(p.label), number: str(p.number) })),
+    accessCode: str(info.audio?.accessCode),
+    audioPassword: str(info.audio?.audioPassword),
+    hostPin: str(info.hostKey),
+  };
+  return details;
+}
+
+/**
+ * Merge a /meetingInfo response into a normalised calendar item: dial the
+ * video-system address and send the video-system password as DTMF.
+ */
+export function applyMeetingInfo(item, info) {
+  const details = meetingInfoToDetails(info);
+  if (!details) return item;
+  const pin = details.videoPassword;
+  return {
+    ...item,
+    details,
+    sipAddress:
+      info.sipUrl || info.video?.videoAddress || item.sipAddress || "",
+    guestPin: /^[0-9*#]{1,32}$/.test(pin) ? pin : "",
+    hostPin: /^\d+$/.test(details.hostPin) ? details.hostPin : "",
+  };
+}
+
+/**
  * Turn the /meetingPreferences/personalMeetingRoom response into a meeting
  * entry so users with nothing scheduled can still join their PMR (with the
  * host PIN, which belongs to them).
@@ -173,6 +240,7 @@ export function personalRoomToMeeting(room) {
   const destination = room?.sipAddress || room?.personalMeetingRoomLink || "";
   if (!destination) return null;
   const pin = String(room.hostPin ?? "");
+  const str = (v) => (v === undefined || v === null ? "" : String(v));
   return {
     id: "personal-meeting-room",
     title: room.topic || "Personal Meeting Room",
@@ -184,6 +252,19 @@ export function personalRoomToMeeting(room) {
     kind: "webex",
     destination,
     personal: true,
+    details: {
+      link: str(room.personalMeetingRoomLink),
+      number: "",
+      password: "",
+      videoAddress: str(room.sipAddress),
+      videoPassword: "",
+      phones: (room.telephony?.callInNumbers ?? [])
+        .filter((p) => p?.callInNumber)
+        .map((p) => ({ label: str(p.label), number: str(p.callInNumber) })),
+      accessCode: str(room.telephony?.accessCode),
+      audioPassword: "",
+      hostPin: pin,
+    },
   };
 }
 
@@ -215,7 +296,11 @@ export function toJoinableMeetings(items, now = Date.now()) {
           start <= now &&
           now <= end),
       hostEmail: item.hostEmail || "",
-      hostPin: item.hostKey && /^\d+$/.test(item.hostKey) ? item.hostKey : "",
+      hostPin:
+        item.hostPin ||
+        (item.hostKey && /^\d+$/.test(item.hostKey) ? item.hostKey : ""),
+      guestPin: item.guestPin || "",
+      details: item.details || null,
       kind: target.kind,
       destination: target.destination,
     });
@@ -240,6 +325,7 @@ export function buildJoinPayload({ scan, meeting, user, guestPin }) {
     // The PIN of the user's own PMR, or a meeting they plausibly host.
     payload.hostPin = meeting.hostPin;
   }
-  if (guestPin) payload.guestPin = guestPin;
+  const guest = guestPin || meeting.guestPin;
+  if (guest) payload.guestPin = guest;
   return payload;
 }
