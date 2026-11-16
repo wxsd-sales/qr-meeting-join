@@ -1,6 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
 import {
   buildJoinPayload,
+  normalizeCalendarEvent,
+  personalRoomToMeeting,
   classifyLink,
   extractJoinTarget,
   isEndpointAllowed,
@@ -179,5 +181,76 @@ describe("buildJoinPayload", () => {
     });
     expect(p).not.toHaveProperty("hostPin");
     expect(p).not.toHaveProperty("guestPin");
+  });
+});
+
+describe("SDK calendar events", () => {
+  test("normalises an SDK event and finds a Zoom link in the location", () => {
+    const item = normalizeCalendarEvent({
+      id: "evt1",
+      subject: "Design review",
+      start: "2099-01-01T10:00:00.000Z",
+      durationMinutes: 30,
+      location: "https://acme.zoom.us/j/123456789?pwd=abc",
+      organizer: { emailAddress: "boss@example.com" },
+    });
+    expect(item.end).toBe("2099-01-01T10:30:00.000Z");
+    const [meeting] = toJoinableMeetings([item], 0);
+    expect(meeting).toMatchObject({
+      title: "Design review",
+      kind: "zoom",
+      destination: "123456789@zoomcrc.com",
+      hostEmail: "boss@example.com",
+    });
+  });
+
+  test("uses the webex SIP address and drops a duplicate REST copy", () => {
+    const sdk = normalizeCalendarEvent({
+      id: "a",
+      subject: "Standup",
+      start: "2099-01-01T10:00:00.000Z",
+      end: "2099-01-01T10:15:00.000Z",
+      webexURI: "sip:123@acme.webex.com",
+    });
+    const rest = {
+      id: "b",
+      title: "Standup",
+      start: "2099-01-01T10:00:00.000Z",
+      end: "2099-01-01T10:15:00.000Z",
+      sipAddress: "123@acme.webex.com",
+    };
+    expect(toJoinableMeetings([sdk, rest], 0)).toHaveLength(1);
+  });
+
+  test("ignores events with no joinable link", () => {
+    const item = normalizeCalendarEvent({ id: "x", subject: "Lunch" });
+    expect(toJoinableMeetings([item])).toEqual([]);
+  });
+});
+
+describe("personal meeting room", () => {
+  const room = {
+    topic: "Alex's room",
+    sipAddress: "alex@acme.webex.com",
+    hostPin: "123456",
+  };
+
+  test("becomes a meeting entry with the host PIN", () => {
+    expect(personalRoomToMeeting(room)).toMatchObject({
+      title: "Alex's room",
+      destination: "alex@acme.webex.com",
+      hostPin: "123456",
+      personal: true,
+    });
+    expect(personalRoomToMeeting({})).toBeNull();
+  });
+
+  test("always sends its host PIN to the join endpoint", () => {
+    const payload = buildJoinPayload({
+      scan: { deviceId: "d", token: "t" },
+      meeting: personalRoomToMeeting(room),
+      user: "",
+    });
+    expect(payload.hostPin).toBe("123456");
   });
 });

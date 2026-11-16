@@ -2,6 +2,8 @@ import {
   buildJoinPayload,
   isEndpointAllowed,
   isScanExpired,
+  normalizeCalendarEvent,
+  personalRoomToMeeting,
   toJoinableMeetings,
 } from "./lib.js";
 import {
@@ -12,7 +14,8 @@ import {
   loadPendingScan,
   startLogin,
 } from "./oauth.js";
-import { getMe, listMeetings } from "./webex.js";
+import { listCalendarEvents } from "./sdk.js";
+import { getMe, getPersonalRoom, listMeetings } from "./webex.js";
 
 const appConfig = window.APP_CONFIG ?? {};
 const config = window.WEBAPP_CONFIG ?? {};
@@ -126,6 +129,39 @@ function renderMeetings() {
 
 /* ----------------------------------------------------------------- flow */
 
+/**
+ * Gather meetings from every source: the SDK calendar (Webex and non-Webex),
+ * the REST meetings API, and the user's Personal Meeting Room. A source that
+ * fails is skipped so one missing scope does not hide the others.
+ */
+async function fetchMeetings(accessToken) {
+  const now = Date.now();
+  const [events, rest, room] = await Promise.allSettled([
+    listCalendarEvents(accessToken, {
+      from: now - 15 * 60 * 1000,
+      to: now + 24 * 3600 * 1000,
+    }),
+    listMeetings(accessToken),
+    getPersonalRoom(accessToken),
+  ]);
+  const results = [events, rest, room];
+  const unauthorized = results.find((r) => r.reason?.status === 401);
+  if (unauthorized) throw unauthorized.reason;
+  if (results.every((r) => r.status === "rejected")) throw rest.reason;
+  for (const r of results) {
+    if (r.status === "rejected")
+      console.warn("Meeting source failed:", r.reason);
+  }
+
+  const items = [
+    ...(events.value ?? []).map(normalizeCalendarEvent).filter(Boolean),
+    ...(rest.value ?? []),
+  ];
+  const meetings = toJoinableMeetings(items, now);
+  const pmr = room.status === "fulfilled" && personalRoomToMeeting(room.value);
+  return pmr ? [pmr, ...meetings] : meetings;
+}
+
 async function loadMeetings() {
   const credentials = getCredentials();
   if (!credentials) return signedOut();
@@ -134,8 +170,7 @@ async function loadMeetings() {
     if (!state.user) {
       state.user = (await getMe(credentials.accessToken))?.displayName ?? "";
     }
-    const items = await listMeetings(credentials.accessToken);
-    state.meetings = toJoinableMeetings(items);
+    state.meetings = await fetchMeetings(credentials.accessToken);
     banner(
       isScanExpired(state.scan)
         ? "This QR code has expired. Scan the new one on the device screen."

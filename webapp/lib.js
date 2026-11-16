@@ -119,6 +119,62 @@ export function extractJoinTarget(meeting) {
   return null;
 }
 
+/**
+ * Map an event from the Webex SDK calendar service (webex.internal.calendar,
+ * after the SDK has decrypted it) onto the record shape used above. Unlike
+ * the REST /meetings API this includes events that are not Webex meetings -
+ * Zoom, Teams and Google Meet links live in the location or notes.
+ */
+export function normalizeCalendarEvent(event) {
+  if (!event || typeof event !== "object") return null;
+  const when = (v) =>
+    typeof v === "string" ? v : (v?.dateTime ?? v?.date ?? "");
+  const start = when(event.start ?? event.startTime);
+  let end = when(event.end ?? event.endTime);
+  if (!end && start && Number(event.durationMinutes) > 0) {
+    end = new Date(
+      Date.parse(start) + Number(event.durationMinutes) * 60000,
+    ).toISOString();
+  }
+  const organizer = event.organizer ?? {};
+  return {
+    id: event.id,
+    title: event.subject ?? event.summary ?? event.title ?? "",
+    start,
+    end,
+    sipAddress: /@/.test(event.webexURI ?? "")
+      ? event.webexURI.replace(/^sip:/i, "")
+      : "",
+    webLink: event.webexURL || event.spaceMeetURL || "",
+    location: typeof event.location === "string" ? event.location : "",
+    agenda: typeof event.notes === "string" ? event.notes : "",
+    hostEmail: organizer.emailAddress ?? organizer.email ?? "",
+  };
+}
+
+/**
+ * Turn the /meetingPreferences/personalMeetingRoom response into a meeting
+ * entry so users with nothing scheduled can still join their PMR (with the
+ * host PIN, which belongs to them).
+ */
+export function personalRoomToMeeting(room) {
+  const destination = room?.sipAddress || room?.personalMeetingRoomLink || "";
+  if (!destination) return null;
+  const pin = String(room.hostPin ?? "");
+  return {
+    id: "personal-meeting-room",
+    title: room.topic || "Personal Meeting Room",
+    start: null,
+    end: null,
+    inProgress: false,
+    hostEmail: "",
+    hostPin: /^\d+$/.test(pin) ? pin : "",
+    kind: "webex",
+    destination,
+    personal: true,
+  };
+}
+
 /** Normalise raw API items into joinable, de-duplicated, time-sorted entries. */
 export function toJoinableMeetings(items, now = Date.now()) {
   const seen = new Set();
@@ -130,8 +186,11 @@ export function toJoinableMeetings(items, now = Date.now()) {
     const end = Date.parse(item.end);
     if (Number.isFinite(end) && end < now) continue;
     const key = item.id ?? `${item.title}|${item.start}`;
-    if (seen.has(key)) continue;
+    // The same meeting can arrive from the SDK and REST with different ids.
+    const same = `${target.destination}|${Number.isFinite(start) ? start : ""}`;
+    if (seen.has(key) || seen.has(same)) continue;
     seen.add(key);
+    seen.add(same);
     out.push({
       id: key,
       title: item.title || "Meeting",
@@ -165,8 +224,8 @@ export function buildJoinPayload({ scan, meeting, user, guestPin }) {
     title: meeting.title,
     user: user || "",
   };
-  if (meeting.hostPin && meeting.hostEmail && user) {
-    // Only offer the host PIN when the signed-in user is plausibly the host.
+  if (meeting.hostPin && (meeting.personal || (meeting.hostEmail && user))) {
+    // The PIN of the user's own PMR, or a meeting they plausibly host.
     payload.hostPin = meeting.hostPin;
   }
   if (guestPin) payload.guestPin = guestPin;

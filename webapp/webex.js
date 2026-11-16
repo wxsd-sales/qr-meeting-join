@@ -71,3 +71,10 @@ export async function listMeetings(accessToken, { hoursAhead = 24 } = {}) {
   ]);
   return [...live, ...upcoming];
 }
+
+/** The signed-in user's Personal Meeting Room (needs meeting:preferences_read). */
+export async function getPersonalRoom(accessToken) {
+  return (
+    await request(accessToken, `${BASE}/meetingPreferences/personalMeetingRoom`)
+  ).json();
+}

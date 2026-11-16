@@ -30,8 +30,9 @@ everything else on their own phone:
 4. If they are not signed in, the web app sends them through the Webex OAuth
    implicit grant. They sign in with their normal Webex credentials and land
    back on the web app with their scan restored.
-5. The web app loads their calendar meetings from Webex (Webex, Zoom, Teams
-   and Google Meet meetings it can join) and shows "Want to join with your
+5. The web app loads their calendar through the Webex SDK (Webex, Zoom, Teams
+   and Google Meet meetings it can join) plus their Personal Meeting Room, so
+   there is always something to join and shows "Want to join with your
    meeting on _Meeting Room 1234_?".
 6. **The person taps their meeting - in the web app on their phone.** The web
    app POSTs the device ID, token and meeting details to the join endpoint
@@ -56,8 +57,9 @@ a refresh can still sign in and pick a meeting. Both are set in the wizard.
 ## Setup checklist
 
 1. Create a [Webex Integration](https://developer.webex.com/my-apps) with
-   redirect URI equal to your web app URL and scopes `spark:people_read` and
-   `meeting:schedules_read`. Put its client ID in
+   redirect URI equal to your web app URL and scopes `spark:all` `spark:people_read`,
+   `meeting:schedules_read`, `meeting:preferences_read` (Personal Meeting Room)
+   and `spark:kms` (Webex SDK calendar). Put its client ID in
    [`webapp/config.js`](webapp/config.js).
 2. Deploy the middleware (webhook / Lambda URL). Its URL is **not** hard-coded
    in the web app - enter it as the **Join endpoint** in the wizard.

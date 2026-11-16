@@ -15,7 +15,7 @@
 window.WEBAPP_CONFIG = {
   clientId: "C2afd0fbf8197e1d5630a86e5979e958603b87d0e448ded5b426de2b1b91e6d3a",
   scopes: [
-    "spark:kms meeting:schedules_read spark:people_read meeting:preferences_read",
+    "spark:kms spark:all meeting:schedules_read spark:people_read meeting:preferences_read",
   ],
   allowedEndpointHosts: [],
 };
