@@ -38,18 +38,23 @@ the web app is served from a different origin, browsers send a CORS preflight
 }
 ```
 
-| Field         | Required | Notes                                                                                                       |
-| ------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| `type`        | yes      | Message type from the QR code (`m=`). Relay it unchanged: the macro ignores `Message Send` text without it. |
-| `v`           | yes      | Payload version. Currently `1`.                                                                             |
-| `deviceId`    | yes      | Webex device ID (`Status.Webex.DeveloperId`) - the Cloud xAPI target.                                       |
-| `token`       | yes      | One-time token from the QR code. **Treat as opaque; the macro checks it.**                                  |
-| `destination` | yes      | SIP URI, number or `https` meeting link to join.                                                            |
-| `meetingType` | no       | `webex` (default), `zoom`, `teams` or `google`; selects the join command.                                   |
-| `title`       | no       | Meeting title, shown in the on-device confirmation.                                                         |
-| `user`        | no       | Display name of the signed-in user (informational only, not trusted).                                       |
-| `hostPin`     | no       | Sent as DTMF after dialling.                                                                                |
-| `guestPin`    | no       | Sent as DTMF after dialling (host PIN wins if both are present).                                            |
+| Field         | Required | Notes                                                                                                  |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `type`        | yes      | From the QR code (`m=`). Relay unchanged: the macro ignores `Message Send` text without it.            |
+| `v`           | yes      | From the QR code (`v=`, currently `1`). Relay unchanged: the macro rejects other versions.             |
+| `deviceId`    | yes      | From the QR code (`d=`): the Webex device ID (`Status.Webex.DeveloperId`), also the Cloud xAPI target. |
+| `token`       | yes      | From the QR code (`t=`). **Treat as opaque; the macro checks it.**                                     |
+| `destination` | yes      | SIP URI, number or `https` meeting link to join.                                                       |
+| `meetingType` | no       | `webex` (default), `zoom`, `teams` or `google`; selects the join command.                              |
+| `title`       | no       | Meeting title, shown in the on-device confirmation.                                                    |
+| `user`        | no       | Display name of the signed-in user (informational only, not trusted).                                  |
+| `hostPin`     | no       | Sent as DTMF after dialling.                                                                           |
+| `guestPin`    | no       | Sent as DTMF after dialling (host PIN wins if both are present).                                       |
+
+The five required fields (`type`, `v`, `deviceId`, `token`, `destination`) are
+exactly what the macro validates before acting, so the middleware must put all
+of them in the `Message Send` text. The web app fills the first four from the
+QR code, so the middleware never has to know the values.
 
 A Webex Connect inbound webhook cannot return a custom response, so **the web
 app cannot learn the outcome**. It shows "Request sent - watch the device

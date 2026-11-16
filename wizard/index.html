@@ -231,6 +231,13 @@
                   </button>
                   <div id="payload-example" hidden>
                     <span class="field__hint"
+                      >Required: <code>type</code>, <code>v</code>,
+                      <code>deviceId</code>, <code>token</code>,
+                      <code>destination</code> - the macro validates each one
+                      before joining, so relay the whole body unchanged as the
+                      <code>Message.Send</code> <code>Text</code>.</span
+                    >
+                    <span class="field__hint"
                       >POST body, sent as
                       <code>Content-Type: application/json</code>:</span
                     >

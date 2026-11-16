@@ -59,6 +59,8 @@ describe("macros/main.js", () => {
     expect(hash.get("d")).toBe("device-123");
     expect(hash.get("n")).toBe("Meeting Room 1234");
     expect(hash.get("t")).toMatch(/^[0-9a-f]{32}$/);
+    expect(hash.get("m")).toBe("qr-join");
+    expect(hash.get("v")).toBe("1");
     expect(hash.get("e")).toBe(macro.JOIN_ENDPOINT ?? "");
     expect(Number(hash.get("x"))).toBeGreaterThan(Number(hash.get("s")));
     expect(hash.get("app")).toBe(macro.WEBAPP_URL);

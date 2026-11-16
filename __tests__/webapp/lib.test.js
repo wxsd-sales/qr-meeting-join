@@ -11,6 +11,7 @@ import {
   isScanExpired,
   normalizeEndpoint,
   parseScan,
+  scanFromQrText,
   toJoinableMeetings,
 } from "../../webapp/lib.js";
 
@@ -26,6 +27,7 @@ describe("parseScan", () => {
       expiresAt: 2_000_000,
       endpoint: "https://hooks.example.com/j",
       messageType: "qr-join",
+      version: 1,
     });
     expect(isScanExpired(scan, 1_999_000)).toBe(false);
     expect(isScanExpired(scan, 2_000_001)).toBe(true);
@@ -359,5 +361,37 @@ describe("message type", () => {
       user: "",
     });
     expect(payload.type).toBe("custom-join");
+    expect(
+      buildJoinPayload({
+        scan: parseScan("#d=x&t=y&v=2"),
+        meeting: { destination: "a@b.c" },
+      }).v,
+    ).toBe(2);
+  });
+});
+
+describe("scanFromQrText", () => {
+  const page = "https://wxsd-sales.github.io/qr-meeting-join/webapp/";
+
+  test("accepts a QR code that opens this web app", () => {
+    const scan = scanFromQrText(`${page}#d=dev&t=tok&x=99&v=1`, page);
+    expect(scan).toMatchObject({ deviceId: "dev", token: "tok" });
+  });
+
+  test("tolerates index.html and a missing trailing slash", () => {
+    const code =
+      "https://wxsd-sales.github.io/qr-meeting-join/webapp/index.html#d=a&t=b";
+    expect(scanFromQrText(code, page)).not.toBeNull();
+  });
+
+  test("rejects other sites, other paths and non-URLs", () => {
+    expect(
+      scanFromQrText("https://evil.example/webapp/#d=a&t=b", page),
+    ).toBeNull();
+    expect(
+      scanFromQrText("https://wxsd-sales.github.io/other/#d=a&t=b", page),
+    ).toBeNull();
+    expect(scanFromQrText("hello", page)).toBeNull();
+    expect(scanFromQrText(`${page}#nothing=here`, page)).toBeNull();
   });
 });

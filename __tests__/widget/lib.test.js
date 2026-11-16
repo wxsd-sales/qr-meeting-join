@@ -9,7 +9,7 @@ import {
 } from "../../widget/lib.js";
 
 const hash =
-  "#app=https%3A%2F%2Fex.github.io%2Fr%2Fwebapp%2F&d=dev%2B1&n=Room%201234&t=abc&x=999&e=https%3A%2F%2Fhooks.example.com%2Fjoin&m=qr-join&title=Hi";
+  "#app=https%3A%2F%2Fex.github.io%2Fr%2Fwebapp%2F&d=dev%2B1&n=Room%201234&t=abc&x=999&e=https%3A%2F%2Fhooks.example.com%2Fjoin&m=qr-join&v=1&title=Hi";
 
 describe("buildScanUrl", () => {
   test("carries the message type into the QR code", () => {
@@ -28,6 +28,7 @@ describe("buildScanUrl", () => {
       x: "999",
       e: "https://hooks.example.com/join",
       m: "qr-join",
+      v: "1",
     });
   });
 

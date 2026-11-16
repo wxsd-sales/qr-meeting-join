@@ -14,6 +14,11 @@ import xapi from "xapi";
  *   e = the join endpoint (webhook / Lambda URL) the web app should POST to
  *   m = the message type ("qr-join") the web app echoes back as `type`, so the
  *       middleware can relay it in the Message Send text this macro filters on
+ *   v = the message version (MESSAGE_VERSION), echoed back as `v` the same way
+ *
+ * Every field handleJoinMessage() validates (type, v, deviceId, token,
+ * destination) is carried from here through the QR code and web app into the
+ * join request, so the middleware only has to relay the body unchanged.
  *
  * The user signs in to Webex on their phone, picks a meeting, and the web app
  * POSTs { deviceId, token, destination, ... } to that endpoint (unauthenticated
@@ -141,6 +146,7 @@ function buildWidgetUrl() {
     app: WEBAPP_URL,
     e: JOIN_ENDPOINT,
     m: MESSAGE_TYPE,
+    v: String(MESSAGE_VERSION),
     d: identity.deviceId,
     n: identity.deviceName,
     t: currentToken,
@@ -165,6 +171,7 @@ function buildScanUrl() {
     x: String(Math.floor(entry.validUntil / 1000)),
     e: JOIN_ENDPOINT,
     m: MESSAGE_TYPE,
+    v: String(MESSAGE_VERSION),
   };
   // Like the widget, omit empty values.
   for (const key of Object.keys(values)) {

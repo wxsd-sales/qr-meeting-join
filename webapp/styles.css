@@ -259,3 +259,25 @@ button:disabled {
     animation: none;
   }
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+button .icon {
+  font-size: 1.25rem;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+#scanner-video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  margin: 0.75rem 0;
+  border-radius: 12px;
+  background: #000;
+  object-fit: cover;
+}

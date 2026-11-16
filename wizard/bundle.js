@@ -18,6 +18,8 @@ export const BUNDLES = {
       "lib.js",
       "oauth.js",
       "webex.js",
+      "sdk.js",
+      "scanner.js",
       "styles.css",
       "favicon.svg",
       "app-config.js",

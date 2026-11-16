@@ -4,6 +4,7 @@ import {
   applyMeetingInfo,
   isScanExpired,
   meetingInfoRequest,
+  scanFromQrText,
   normalizeCalendarEvent,
   personalRoomToMeeting,
   toJoinableMeetings,
@@ -14,9 +15,11 @@ import {
   consumeUrl,
   getCredentials,
   loadPendingScan,
+  savePendingScan,
   startLogin,
 } from "./oauth.js";
 import { getMeetingInfo, listCalendarEvents } from "./sdk.js";
+import { startScanner } from "./scanner.js";
 import { getMe, getPersonalRoom, listMeetings } from "./webex.js";
 
 const appConfig = window.APP_CONFIG ?? {};
@@ -49,7 +52,12 @@ if (appConfig.title) {
 /* ------------------------------------------------------------------- UI */
 
 function show(view) {
-  for (const id of ["view-signin", "view-meetings", "view-done"]) {
+  for (const id of [
+    "view-signin",
+    "view-meetings",
+    "view-done",
+    "view-scanner",
+  ]) {
     $(id).hidden = id !== view;
   }
   $("sign-out").hidden = view === "view-signin";
@@ -107,6 +115,8 @@ function renderDetails(details) {
 
 function renderMeetings() {
   const expired = isScanExpired(state.scan);
+  // Offer a rescan whenever there is no usable QR code.
+  $("scan-new").hidden = Boolean(state.scan) && !expired;
   const list = $("meeting-list");
 
   if (!state.scan) {
@@ -355,6 +365,47 @@ async function loadMeetings() {
   renderMeetings();
 }
 
+/* ------------------------------------------------------- in-app scanning */
+
+let stopScanner = null;
+
+/** Leave the scanner (stopping the camera) and return to the meetings. */
+function endScan() {
+  stopScanner?.();
+  stopScanner = null;
+  show("view-meetings");
+  renderMeetings();
+}
+
+async function beginScan() {
+  banner("");
+  show("view-scanner");
+  try {
+    stopScanner = await startScanner($("scanner-video"), (text) => {
+      const scan = scanFromQrText(text, location.href);
+      if (!scan) return false; // some other QR code: keep looking
+      debugRecord("scannedQr", { ...scan, token: "…" });
+      savePendingScan(scan);
+      state.scan = scan;
+      stopScanner = null;
+      show("view-meetings");
+      banner("");
+      renderMeetings();
+      return true;
+    });
+  } catch (error) {
+    stopScanner = null;
+    show("view-meetings");
+    renderMeetings();
+    banner(
+      error?.name === "NotAllowedError"
+        ? "Camera access was blocked. Allow the camera for this site to scan."
+        : `Could not start the camera: ${error.message}`,
+      "error",
+    );
+  }
+}
+
 function signedOut(message = "") {
   state.meetings = [];
   state.pmr = null;
@@ -436,6 +487,8 @@ $("sign-out").addEventListener("click", () => {
   signedOut();
 });
 $("refresh").addEventListener("click", loadMeetings);
+$("scan-new").addEventListener("click", beginScan);
+$("scanner-cancel").addEventListener("click", () => endScan());
 $("done-back").addEventListener("click", loadMeetings);
 
 (async function init() {

@@ -10,6 +10,12 @@
     <!-- Static app configuration values for this project. -->
     <script src="app-config.js"></script>
     <script src="config.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@momentum-design/icons@0.54.0/dist/data/MomentumFontIcons.css"
+      integrity="sha384-cRTwUMmzKBtfI4txd/iehWhZp7TowC6EHDTTfeR4fA88pF5oezPFRmSCub32x7JR"
+      crossorigin="anonymous"
+    />
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   </head>
@@ -42,7 +48,28 @@
         <h2 class="section-title">Meetings</h2>
         <p class="muted section-sub">Starting in the next 24 hours</p>
         <ul class="meetings" id="meeting-list" aria-live="polite"></ul>
-        <button class="secondary" id="refresh" type="button">Refresh</button>
+        <div class="actions">
+          <button class="primary" id="scan-new" type="button" hidden>
+            <span
+              class="icon icon-qr-code-scan-regular"
+              aria-hidden="true"
+            ></span>
+            Scan new QR code
+          </button>
+          <button class="secondary" id="refresh" type="button">Refresh</button>
+        </div>
+      </section>
+
+      <section class="card" id="view-scanner" hidden>
+        <h1>Scan the QR code</h1>
+        <p class="muted" id="scanner-hint">
+          Point your back camera at the QR code on the device screen.
+        </p>
+        <video id="scanner-video" playsinline muted></video>
+        <button class="secondary" id="scanner-cancel" type="button">
+          <span class="icon icon-cancel-bold" aria-hidden="true"></span>
+          Cancel
+        </button>
       </section>
 
       <section class="card" id="view-done" hidden>

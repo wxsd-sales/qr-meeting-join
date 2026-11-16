@@ -56,8 +56,29 @@ export function parseScan(hash) {
     deviceName: p.get("n")?.trim() || "",
     endpoint: normalizeEndpoint(p.get("e")?.trim()),
     messageType: p.get("m")?.trim() || DEFAULT_MESSAGE_TYPE,
+    version: Number(p.get("v")) > 0 ? Number(p.get("v")) : PAYLOAD_VERSION,
     expiresAt: Number.isFinite(expires) && expires > 0 ? expires * 1000 : 0,
   };
+}
+
+/**
+ * Interpret the text of a QR code scanned inside the web app. Only codes that
+ * open *this* web app (same origin and path) are accepted, so a stray QR code
+ * can never inject a scan. Returns the scan or null.
+ */
+export function scanFromQrText(text, pageUrl) {
+  let code;
+  let page;
+  try {
+    code = new URL(String(text).trim());
+    page = new URL(pageUrl);
+  } catch {
+    return null;
+  }
+  const path = (u) =>
+    u.pathname.replace(/\/index\.html$/, "").replace(/\/$/, "");
+  if (code.origin !== page.origin || path(code) !== path(page)) return null;
+  return parseScan(code.hash);
 }
 
 export function isScanExpired(scan, now = Date.now()) {
@@ -316,7 +337,7 @@ export function toJoinableMeetings(items, now = Date.now()) {
 export function buildJoinPayload({ scan, meeting, user, guestPin }) {
   const payload = {
     type: scan.messageType || DEFAULT_MESSAGE_TYPE,
-    v: PAYLOAD_VERSION,
+    v: scan.version || PAYLOAD_VERSION,
     deviceId: scan.deviceId,
     token: scan.token,
     destination: meeting.destination,
